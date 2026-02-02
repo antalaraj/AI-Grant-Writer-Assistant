@@ -1,0 +1,348 @@
+/* =========================================
+   1. GLOBAL & FONTS
+   ========================================= */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Merriweather:wght@300;400;700&display=swap');
+
+:root {
+    --primary: #4F46E5;
+    --primary-hover: #4338ca;
+    --bg-color: #F3F4F6;
+    --card-bg: #ffffff;
+    --text-main: #111827;
+    --text-muted: #6B7280;
+    --border: #E5E7EB;
+    
+    /* Standard UI Shadow */
+    --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    /* Deep Paper Shadow for Report */
+    --paper-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    
+    --font-ui: 'Inter', sans-serif;
+    --font-doc: 'Merriweather', serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    background-color: var(--bg-color);
+    font-family: var(--font-ui);
+    color: var(--text-main);
+    line-height: 1.6;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}
+
+/* =========================================
+   2. APP LAYOUT
+   ========================================= */
+.app-container {
+    width: 100%;
+    max-width: 900px; 
+    margin: 0 auto;
+}
+
+.app-header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.logo {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.subtitle {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    margin-top: 5px;
+}
+
+/* =========================================
+   3. INPUT CARD & FORMS
+   ========================================= */
+.card {
+    background: var(--card-bg);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    padding: 32px;
+    border: 1px solid var(--border);
+    transition: all 0.3s ease;
+    max-width: 600px; 
+    margin: 0 auto; 
+}
+
+.card-header { margin-bottom: 24px; }
+.card-header h2 { font-size: 1.35rem; font-weight: 600; margin-bottom: 8px; }
+.card-header p { color: var(--text-muted); font-size: 0.95rem; }
+
+.form-group { margin-bottom: 20px; }
+label { display: block; font-weight: 500; margin-bottom: 8px; font-size: 0.9rem; }
+
+input, textarea {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 1rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+input:focus, textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+}
+
+.btn-primary {
+    background-color: var(--primary);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    width: 100%;
+    font-size: 1rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    transition: background 0.2s;
+}
+
+.btn-primary:hover { background-color: var(--primary-hover); }
+
+.btn-secondary {
+    background-color: white;
+    color: var(--text-main);
+    border: 1px solid var(--border);
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 0.9rem;
+    transition: background 0.2s;
+}
+
+.btn-secondary:hover { background-color: #F9FAFB; }
+
+/* =========================================
+   4. LOADING STATE
+   ========================================= */
+.loading-card { text-align: center; padding: 60px 20px; max-width: 600px; margin: 0 auto; }
+
+.spinner {
+    width: 45px;
+    height: 45px;
+    border: 3px solid var(--bg-color);
+    border-top: 3px solid var(--primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 25px;
+}
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+.agent-steps {
+    list-style: none;
+    margin: 25px 0;
+    text-align: left;
+    display: inline-block;
+}
+.step { padding: 6px 0; color: var(--text-muted); font-size: 0.95rem; opacity: 0.4; display: flex; align-items: center; gap: 10px; }
+.step.active { opacity: 1; color: var(--primary); font-weight: 600; }
+.step.active::before { content: '●'; font-size: 0.8rem; }
+
+/* =========================================
+   5. REPORT RESULT ("THE PAPER VIEW")
+   ========================================= */
+.result-card {
+    max-width: 100%; 
+    padding: 20px;
+    background: transparent; 
+    box-shadow: none;
+    border: none;
+}
+
+.result-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    background: white;
+    padding: 15px 20px;
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+}
+
+.header-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+/* The Dark Grey Background for the "Desk" */
+.report-container {
+    background: #525659; 
+    padding: 40px 20px;
+    border-radius: 8px;
+    overflow-y: auto;
+    max-height: 80vh;
+    border: 1px solid var(--border);
+}
+
+/* The Actual White Paper Sheet */
+.paper-sheet {
+    background: white;
+    width: 100%;
+    max-width: 210mm; 
+    min-height: 297mm; 
+    margin: 0 auto;
+    padding: 50px 60px;
+    box-shadow: 0 0 20px rgba(0,0,0,0.25);
+    color: #111;
+    font-size: 11pt;
+}
+
+/* =========================================
+   6. MARKDOWN TYPOGRAPHY
+   ========================================= */
+.markdown-body { font-family: var(--font-ui); }
+
+.markdown-body h1 {
+    font-family: var(--font-doc);
+    font-size: 24pt;
+    font-weight: 700;
+    text-align: center;
+    border-bottom: 2px solid #000;
+    padding-bottom: 15px;
+    margin-bottom: 30px;
+    margin-top: 0;
+    color: #000;
+}
+
+.markdown-body h2 {
+    font-family: var(--font-doc);
+    font-size: 16pt;
+    color: var(--primary);
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 5px;
+    margin-top: 35px;
+    margin-bottom: 15px;
+}
+
+.markdown-body h3 {
+    font-family: var(--font-doc);
+    font-size: 13pt;
+    font-weight: 700;
+    margin-top: 25px;
+    margin-bottom: 10px;
+    color: #374151;
+}
+
+.markdown-body p {
+    margin-bottom: 1em;
+    text-align: justify;
+    line-height: 1.7;
+}
+
+.markdown-body ul {
+    padding-left: 20px;
+    margin-bottom: 1.5em;
+}
+
+.markdown-body li {
+    margin-bottom: 8px;
+}
+
+.markdown-body strong {
+    font-weight: 700;
+    color: #000;
+    background-color: #EFF6FF; 
+    padding: 0 4px;
+    border-radius: 4px;
+}
+
+.markdown-body ul li:has(strong) {
+    border-bottom: 1px dashed #e5e7eb;
+    padding-bottom: 4px;
+    margin-bottom: 10px;
+}
+
+.result-footer {
+    margin-top: 20px;
+    text-align: center;
+}
+.btn-text {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    text-decoration: underline;
+    font-size: 0.9rem;
+}
+
+.off-screen {
+    position: absolute;
+    left: -9999px;
+    top: 0;
+    opacity: 0;
+}
+
+/* =========================================
+   8. PRINT / SAVE PDF LOGIC (FIXED)
+   ========================================= */
+
+@page {
+    margin: 15mm;
+    size: auto;
+}
+
+@media print {
+    /* 1. Hide everything by default */
+    body * {
+        visibility: hidden;
+    }
+
+    /* 2. Make only the Paper Sheet content visible */
+    /* We target .paper-sheet and all its children */
+    .paper-sheet, .paper-sheet * {
+        visibility: visible;
+    }
+
+    /* 3. Position the Paper Sheet to the top-left of the print page */
+    .paper-sheet {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+        box-shadow: none; /* Remove shadow for print */
+        background: white;
+    }
+
+    /* 4. Ensure Typography is Black (Clean Print) */
+    .markdown-body strong {
+        background-color: transparent !important;
+        color: black !important;
+    }
+    .markdown-body h2 {
+        color: black !important;
+        border-bottom: 1px solid #000 !important;
+    }
+    
+    /* 5. Hide the scrollbar container logic */
+    .report-container {
+        background: none !important;
+        border: none !important;
+        overflow: visible !important;
+        max-height: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+}

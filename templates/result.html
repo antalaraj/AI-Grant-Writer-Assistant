@@ -1,0 +1,18 @@
+<div class="card result-card fade-in">
+    <div class="card-header result-header">
+        <h2><span class="icon">📄</span> Grant Proposal Draft</h2>
+        <div class="header-actions">
+            <button onclick="window.print()" class="btn-primary">Download / Save as PDF</button>
+        </div>
+    </div>
+
+    <div class="report-container">
+        <div class="markdown-body paper-sheet" id="markdown-output">
+            <textarea id="raw-data" class="off-screen">{{ raw_output }}</textarea>
+        </div>
+    </div>
+    
+    <div class="result-footer">
+        <button onclick="window.location.reload()" class="btn-text">← Start New Search</button>
+    </div>
+</div>

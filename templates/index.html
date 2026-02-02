@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Grant Writer Assistant</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+    <div class="app-container">
+        <header class="app-header">
+            <div class="logo">
+                <span class="icon">✨</span> AI Grant Writer
+            </div>
+            <p class="subtitle">Powered by CrewAI, LLaMA 3.3 & Gemini 2.5 Flash</p>
+        </header>
+
+        <main id="main-content">
+            
+            <div id="input-card" class="card fade-in">
+                <div class="card-header">
+                    <h2>Start New Project</h2>
+                    <p>Describe your organization to find and draft winning grants.</p>
+                </div>
+                
+                <form id="grant-form">
+                    <div class="form-group">
+                        <label for="org_type">Organization Type</label>
+                        <input type="text" id="org_type" name="org_type" placeholder="e.g. Non-Profit, Tech Startup, NGO" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="mission">Project Mission</label>
+                        <textarea id="mission" name="mission" rows="4" placeholder="e.g. Reforestation of urban areas using drone technology..." required></textarea>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn-primary" id="submit-btn">
+                            Generate Grant Report 
+                            <span class="arrow">→</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <div id="loading-container" style="display: none;"></div>
+            <div id="result-container" style="display: none;"></div>
+
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
