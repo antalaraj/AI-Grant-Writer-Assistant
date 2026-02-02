@@ -56,16 +56,13 @@ AI Grant Writer Assistant solves this problem using **Agentic AI architecture**,
 
 ### 1. Clone the repository
 git clone https://github.com/antalaraj/AI-Grant-Writer-Assistant.git  
-cd AI-Grant-Writer-Assistant  
+cd AI-Grant-Writer-Assistant   
 
-### 2. Install dependencies
-pip install -r requirements.txt  
-
-### 3. Set API keys (Windows)
+### 2. Set API keys (Windows)
 set GROQ_API_KEY=your_key_here  
 set GEMINI_API_KEY=your_key_here  
 
-### 4. Run the application
+### 3. Run the application
 python web.py  
 
 Open in browser:  
