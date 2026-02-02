@@ -100,10 +100,12 @@ AI-Grant-Writer-Assistant/
 ---
 
 ## 👨‍💻 Author
-
 Raj Antala  
-PGDM Student – AI & Data Science  
-Adani Institute of Digital Technology Management (AIDTM)  
+🎓 PGDM Student in AI and Data Science  
+🏫 Adani Institute of Digital Technology Management (AIDTM)  
+📍 Gandhinagar, India  
+📧 antalaraj214@gmail.com  
+🔗 www.linkedin.com/in/antalaraj
 
 Passionate about building intelligent systems and real-world AI applications.
 
