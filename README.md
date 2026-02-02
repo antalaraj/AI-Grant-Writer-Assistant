@@ -85,20 +85,19 @@ http://127.0.0.1:5000
 
 ## 📁 Project Structure
 
-AI-Grant-Writer-Assistant/  
-│  
-├── app.py  
-├── web.py  
-├── requirements.txt  
-│  
-├── templates/  
-│   ├── index.html  
-│   ├── loading.html  
-│   └── result.html  
-│  
-└── static/  
-    ├── css/  
-    └── js/  
+📁 AI-Grant-Writer-Assistant/
+│
+├── app.py
+├── web.py
+│
+├── templates/
+│   ├── index.html
+│   ├── loading.html
+│   └── result.html
+│
+└── static/
+    ├── css/
+    └── js/
 
 ---
 
