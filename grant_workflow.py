@@ -232,13 +232,8 @@ REQUIRED_REPORT_SECTIONS = [
 def _insert_missing_section(text: str, section_number: int, title: str) -> str:
     """Insert a placeholder section in numeric order instead of appending out of order."""
     heading = f"## {section_number}. {title}"
-    next_section = re.search(
-        rf"(?im)^#{1,4}\s*(?:{section_number + 1}|{section_number + 2}|"
-        rf"{section_number + 3}|{section_number + 4}|{section_number + 5}|"
-        rf"{section_number + 6}|{section_number + 7}|{section_number + 8}|"
-        rf"{section_number + 9}|{section_number + 10}|{section_number + 11})\.\s+",
-        text,
-    )
+    higher_numbers = "|".join(str(n) for n in range(section_number + 1, 13))
+    next_section = re.search(rf"(?im)^#{{1,4}}\s*(?:{higher_numbers})\.\s+", text) if higher_numbers else None
     placeholder = (
         f"\n\n{heading}\n\n"
         "_This section was missing from the generated draft. Complete it using verified "
@@ -249,13 +244,47 @@ def _insert_missing_section(text: str, section_number: int, title: str) -> str:
     return text.rstrip() + placeholder
 
 
-def _normalize_report_structure(report: str) -> str:
-    """Guarantee report sections and a meaningful, honest opportunity evidence table."""
+def _source_list(source_json: str) -> list[dict]:
+    """Parse search records defensively; URLs remain leads, not verified grant calls."""
+    try:
+        records = json.loads(source_json or "[]")
+    except (ValueError, TypeError):
+        return []
+    if not isinstance(records, list):
+        return []
+    clean = []
+    for row in records:
+        if not isinstance(row, dict):
+            continue
+        url = str(row.get("url") or "").strip()
+        if not url.startswith(("https://", "http://")):
+            continue
+        clean.append({
+            "title": str(row.get("title") or "Untitled search result").replace("|", "\\|").replace("\n", " ")[:140],
+            "url": url.replace("|", "%7C"),
+            "domain": str(row.get("domain") or _domain(url)),
+            "source_tier": str(row.get("source_tier") or _source_tier(url)),
+        })
+    return clean[:8]
+
+
+def _section_bounds(text: str, section_number: int) -> tuple[int, int] | None:
+    match = re.search(rf"(?im)^#{{1,4}}\s*{section_number}\.\s+.*$", text)
+    if not match:
+        return None
+    body_start = match.end()
+    next_heading = re.search(r"(?m)^#{1,4}\s*\d+\.\s+", text[body_start:])
+    body_end = body_start + next_heading.start() if next_heading else len(text)
+    return body_start, body_end
+
+
+def _normalize_report_structure(report: str, source_json: str = "[]") -> str:
+    """Guarantee section structure and populate evidence/checklist sections from search URLs."""
     text = (report or "").strip()
     if not text:
         text = "# Grant Strategy Report\n\nNo report text was returned by the model."
 
-    # Insert any missing sections in order. This does not fabricate report content.
+    # Missing headings get explicit placeholders, inserted in numeric order.
     for heading in REQUIRED_REPORT_SECTIONS:
         number, title = heading.split(". ", 1)
         n = int(number)
@@ -263,30 +292,62 @@ def _normalize_report_structure(report: str) -> str:
         if not re.search(heading_regex, text):
             text = _insert_missing_section(text, n, title)
 
-    # Locate Section 11 and stop at the next numbered heading (whatever its number).
-    evidence_match = re.search(
-        r"(?im)^#{1,4}\s*11\.\s*Grant Opportunity Evidence Table\s*$", text
-    )
-    if evidence_match:
-        body_start = evidence_match.end()
-        next_heading = re.search(r"(?m)^#{1,4}\s*\d+\.\s+", text[body_start:])
-        body_end = body_start + next_heading.start() if next_heading else len(text)
-        body = text[body_start:body_end].strip()
-        table_rows = re.findall(r"(?m)^\|.*\|.*\|", body)
+    sources = _source_list(source_json)
 
-        # A single stray Markdown pipe row is not a populated evidence table.
-        if len(table_rows) < 2:
-            replacement = (
-                "\n\nNo opportunity can be labelled **Verified open** from this run's evidence. "
-                "Search results are leads only; deadlines, eligibility, and award amounts must "
-                "be confirmed on the official funder page.\n\n"
-                "| Funder / programme | Official source URL | Status | Deadline / amount | Required next check |\n"
-                "|---|---|---|---|---|\n"
-                "| No verified open call identified from supplied evidence | Not established | Insufficient evidence | Not confirmed | Confirm active call, legal-form eligibility, geography, deadline, and award ceiling on the official source. |\n\n"
+    # Generate this table from raw search records instead of trusting the model to
+    # preserve a Markdown table. The search provider has not verified page contents.
+    bounds = _section_bounds(text, 11)
+    if bounds:
+        body_start, body_end = bounds
+        rows = [
+            "\n\nSearch results below are **potential leads only**. They are not confirmed grant calls. "
+            "No result is labelled open or eligible because this workflow has not independently "
+            "verified the official call page.\n\n",
+            "| Search-result title | Source URL | Source tier | Status | Required verification |\n",
+            "|---|---|---|---|---|\n",
+        ]
+        if sources:
+            for item in sources:
+                title = item["title"].replace("[", "\\[").replace("]", "\\]")
+                rows.append(
+                    f"| {title} | [Open source]({item['url']}) | {item['source_tier']} | "
+                    "Unverified lead | Confirm active call, eligibility, deadline, funding limit, and application rules on the source page. |\n"
+                )
+        else:
+            rows.append(
+                "| No usable search result | Not available | No URL | Insufficient evidence | Search the official funder portals manually. |\n"
             )
-            text = text[:body_start] + replacement + text[body_end:]
+        rows.append("\n")
+        text = text[:body_start] + "".join(rows) + text[body_end:]
 
-    # Normalize heading text for the audit section (added after this function).
+    # Replace Section 12 with a reliable operational checklist and source inventory.
+    # This preserves URLs and does not assert that any call is currently open.
+    bounds = _section_bounds(text, 12)
+    if bounds:
+        body_start, body_end = bounds
+        checklist = [
+            "\n\n### Verification checklist before applying\n\n",
+            "- [ ] Open the official funder/programme page and confirm a current call is accepting applications.\n",
+            "- [ ] Confirm the applicant's legal form and registration satisfy the call's rules.\n",
+            "- [ ] Confirm Gujarat/Dahod and the proposed health activities are in scope.\n",
+            "- [ ] Record the deadline, time zone, award minimum/maximum, and eligible cost categories.\n",
+            "- [ ] Check matching-fund requirements, restrictions, required attachments, and reporting duties.\n",
+            "- [ ] Save the call-for-proposals document and record the date it was checked.\n\n",
+            "### Search-result source inventory (not proof of an open grant)\n\n",
+        ]
+        if sources:
+            for item in sources:
+                checklist.append(
+                    f"- [{item['title']}]({item['url']}) — {item['source_tier']}; "
+                    "page contents, grant status, and eligibility still require verification.\n"
+                )
+        else:
+            checklist.append(
+                "- No usable search URLs were returned. Search official government, state health, CSR, and foundation portals directly.\n"
+            )
+        checklist.append("\n")
+        text = text[:body_start] + "".join(checklist) + text[body_end:]
+
     text = re.sub(
         r"(?im)^#{1,4}\s*13\.\s*Automated Quality Audit",
         "## 13. Automated Quality Audit",
@@ -392,6 +453,9 @@ Rules:
     logger.info("Grant workflow stage=initial_report started.")
     report = _groq_chat(system, prompt, temperature=0.15)
 
+    # Repair missing sections and derive evidence tables from real search URLs before audit.
+    report = _normalize_report_structure(report, sources)
+
     # The draft is the deliverable. Auditing and revision are enhancements, so
     # rate limits or malformed audit output must never turn a usable draft into HTTP 500.
     review_data = {
@@ -445,6 +509,9 @@ CURRENT REPORT:
 
     # Repair malformed/missing headings and the empty opportunity table before rendering.
     report = _normalize_report_structure(report)
+
+    # Reapply deterministic structure after the optional revision model to prevent regressions.
+    report = _normalize_report_structure(report, sources)
 
     # Append transparent QA information; never imply the score guarantees funding success.
     qa = {
