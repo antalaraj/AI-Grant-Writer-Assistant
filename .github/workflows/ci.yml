@@ -31,3 +31,29 @@ jobs:
           test -f templates/result.html
           test -f public/style.css
           test -f public/main.js
+
+      - name: Smoke-test Flask routes
+        run: |
+          python - <<'PY'
+          import os
+          from unittest.mock import patch
+          from web import app
+
+          app.config["TESTING"] = True
+          client = app.test_client()
+
+          home = client.get("/")
+          assert home.status_code == 200, home.status_code
+          assert b"AI Grant Writer" in home.data
+
+          empty = client.post("/run-grant-writer", json={})
+          assert empty.status_code == 400, empty.status_code
+
+          with patch.dict(os.environ, {}, clear=True):
+              missing_keys = client.post(
+                  "/run-grant-writer",
+                  json={"org_type": "NGO", "mission": "Improve rural education"}
+              )
+          assert missing_keys.status_code == 503, missing_keys.status_code
+          print("Flask smoke tests passed.")
+          PY
