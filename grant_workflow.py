@@ -65,13 +65,14 @@ class GrantTools:
 
     @tool("eligibility_check_tool")
     def eligibility_check(grant_info: str) -> str:
-        """Check eligibility risks and assumptions."""
+        """Review supplied grant information and flag facts that require official verification."""
         return (
-            "Eligibility Review:\n"
-            "- {org_type} verified\n"
-            "- Deadline status must be verified as of today\n"
-            "- Geographic restrictions must be confirmed\n"
-            "- Matching funds requirement unclear (risk flagged)"
+            "Eligibility Review (based only on supplied grant information):\\n"
+            f"Grant details to verify: {grant_info[:4000]}\\n"
+            "- Confirm the applicant's legal entity type against official funder rules.\\n"
+            "- Verify the deadline on the official funder website; do not assume it is open.\\n"
+            "- Confirm geographic, funding-stage, and financial restrictions.\\n"
+            "- Treat missing or unverified details as risks, not as confirmed eligibility."
         )
 
     @tool("report_structuring_tool")
