@@ -52,6 +52,32 @@ AI Grant Writer Assistant solves this problem using **Agentic AI architecture**,
 
 ---
 
+## ☁️ Deploy to Vercel
+
+This repository can be deployed as a Flask application on Vercel.
+
+### 1. Import the repository
+1. Open the [Vercel dashboard](https://vercel.com/new).
+2. Import `antalaraj/AI-Grant-Writer-Assistant` from GitHub.
+3. Use the repository root as the project root. Vercel detects the Flask entry point in `app.py`.
+
+### 2. Add environment variables
+In **Project Settings → Environment Variables**, add both API keys for Preview and Production as appropriate:
+
+- `GROQ_API_KEY` — your Groq API key
+- `GEMINI_API_KEY` — your Gemini API key
+
+Optionally add `FLASK_SECRET_KEY` as a long random secret. Do not commit API keys to GitHub or expose them in frontend JavaScript.
+
+### 3. Deploy
+Deploy the project from Vercel. The included `vercel.json` sets a 300-second function duration; a workflow can still time out if it exceeds the maximum duration permitted by the selected Vercel plan and compute configuration.
+
+### Deployment notes
+- The Flask frontend and server-side workflow run as a Python application; frontend assets are served from `public/`.
+- Grant reports are returned in the HTTP response. The deployed function should not be treated as persistent storage for generated files.
+- Check Vercel's function logs if report generation fails. The workflow calls Groq, Gemini, and DuckDuckGo search services, so their API availability and rate limits can affect requests.
+- The project has not been verified with a live Vercel deployment as part of these source changes.
+
 ## 🧪 How to Run Locally
 
 ### 1. Clone the repository
@@ -84,17 +110,20 @@ http://127.0.0.1:5000
 
 ```text
 AI-Grant-Writer-Assistant/
-├── app.py
-├── web.py
-│
+├── app.py                 # Vercel Flask entry point
+├── web.py                 # Flask routes and local server
+├── grant_workflow.py      # CrewAI agents and report generation
+├── requirements.txt
+├── vercel.json
+├── .python-version
+├── public/
+│   ├── style.css
+│   └── main.js
 ├── templates/
 │   ├── index.html
 │   ├── loading.html
 │   └── result.html
-│
-└── static/
-    ├── css/
-    └── js/
+└── static/                # Original asset copies retained for local compatibility
 ```
 
 ---

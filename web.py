@@ -1,71 +1,63 @@
 import os
-import sys
-import subprocess
+import logging
+import warnings
 from flask import Flask, render_template, request, jsonify
 
+os.environ.setdefault("LITELLM_LOG", "CRITICAL")
+os.environ.setdefault("OTEL_SDK_DISABLED", "true")
+os.environ.setdefault("PYTHONWARNINGS", "ignore")
+logging.basicConfig(level=logging.CRITICAL)
+warnings.filterwarnings("ignore")
+
 app = Flask(__name__)
+app.config["SECRET_KEY"] = os.getenv("FLASK_SECRET_KEY", os.urandom(32).hex())
 
-# Configuration
-app.config['SECRET_KEY'] = 'dev-secret-key-change-in-prod'
 
-@app.route('/')
+@app.route("/")
 def index():
-    """Renders the main input form."""
-    return render_template('index.html')
+    return render_template("index.html")
 
-@app.route('/loading-fragment')
+
+@app.route("/loading-fragment")
 def loading_fragment():
-    """Returns the HTML for the loading spinner (fetched via JS)."""
-    return render_template('loading.html')
+    return render_template("loading.html")
 
-@app.route('/run-grant-writer', methods=['POST'])
+
+@app.route("/run-grant-writer", methods=["POST"])
 def run_grant_writer():
-    """
-    Executes app.py using subprocess.
-    Passes user input via STDIN.
-    Captures STDOUT/STDERR.
-    """
-    data = request.json
-    org_type = data.get('org_type', '').strip()
-    mission = data.get('mission', '').strip()
+    data = request.get_json(silent=True) or {}
+    org_type = str(data.get("org_type", "")).strip()
+    mission = str(data.get("mission", "")).strip()
 
     if not org_type or not mission:
-        return jsonify({'error': 'Please fill in all fields.'}), 400
+        return jsonify({"error": "Please fill in all fields."}), 400
 
-    # Prepare input string (matches the input() calls in app.py)
-    # app.py asks for Org Type first, then Mission.
-    input_str = f"{org_type}\n{mission}\n"
+    if len(org_type) > 200 or len(mission) > 5000:
+        return jsonify({"error": "Organization type or mission is too long."}), 400
+
+    missing_keys = [
+        key for key in ("GROQ_API_KEY", "GEMINI_API_KEY")
+        if not os.getenv(key)
+    ]
+    if missing_keys:
+        return jsonify({
+            "error": "Server configuration is incomplete.",
+            "details": "Configure GROQ_API_KEY and GEMINI_API_KEY in Vercel project settings."
+        }), 503
 
     try:
-        # Run app.py as a subprocess
-        # python -u forces unbuffered binary stdout
-        process = subprocess.Popen(
-            [sys.executable, '-u', 'app.py'],
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,  # Text mode for easier string handling
-            cwd=os.getcwd()  # Ensure we run in the correct directory
-        )
+        # Import lazily so the home page still loads if AI dependencies or
+        # provider credentials have a configuration problem.
+        from grant_workflow import generate_grant_report
+        report = generate_grant_report(org_type, mission)
+        return render_template("result.html", raw_output=report)
+    except Exception:
+        app.logger.exception("Grant report generation failed")
+        return jsonify({
+            "error": "The grant-writing workflow failed.",
+            "details": "Check the Vercel function logs and verify your API keys and dependency versions."
+        }), 500
 
-        # Communicate sends input and waits for termination
-        stdout, stderr = process.communicate(input=input_str)
 
-        if process.returncode != 0:
-            # Check if it was a crash or just a non-zero exit
-            return jsonify({
-                'error': 'The agent encountered an error.',
-                'details': stderr or stdout
-            }), 500
-
-        # Render the result template with the captured output
-        # We pass the raw markdown to be rendered by JS on the frontend
-        return render_template('result.html', raw_output=stdout)
-
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-if __name__ == '__main__':
-    # Running on port 5000 by default
-    print("Starting Web Interface for AI Grant Writer...")
-    app.run(debug=True, port=5000)
+if __name__ == "__main__":
+    app.run(host="127.0.0.1", port=5000, debug=True)
