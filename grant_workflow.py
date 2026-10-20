@@ -325,10 +325,9 @@ def _normalize_report_structure(report: str, source_json: str = "[]") -> str:
     for heading in REQUIRED_REPORT_SECTIONS:
         number, title = heading.split(". ", 1)
         n = int(number)
-        # REQUIRED_REPORT_SECTIONS includes the number in each display label.
+        # The loop splits "6. 1-Page Proposal Skeleton" into number=6 and title="1-Page Proposal Skeleton".
         # Match the number once, then match only the title (allowing explanatory suffixes).
-        title_only = title.split(". ", 1)[1]
-        heading_regex = rf"(?im)^#{{1,4}}\s*{n}\.\s*{re.escape(title_only)}\b.*$"
+        heading_regex = rf"(?im)^#{{1,4}}\s*{n}\.\s*{re.escape(title)}\b.*$"
         if not re.search(heading_regex, text):
             text = _insert_missing_section(text, n, title)
 
