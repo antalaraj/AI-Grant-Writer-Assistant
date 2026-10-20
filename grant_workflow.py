@@ -229,48 +229,71 @@ REQUIRED_REPORT_SECTIONS = [
 ]
 
 
+def _insert_missing_section(text: str, section_number: int, title: str) -> str:
+    """Insert a placeholder section in numeric order instead of appending out of order."""
+    heading = f"## {section_number}. {title}"
+    next_section = re.search(
+        rf"(?im)^#{1,4}\s*(?:{section_number + 1}|{section_number + 2}|"
+        rf"{section_number + 3}|{section_number + 4}|{section_number + 5}|"
+        rf"{section_number + 6}|{section_number + 7}|{section_number + 8}|"
+        rf"{section_number + 9}|{section_number + 10}|{section_number + 11})\.\s+",
+        text,
+    )
+    placeholder = (
+        f"\n\n{heading}\n\n"
+        "_This section was missing from the generated draft. Complete it using verified "
+        "evidence before submitting or relying on this report._\n"
+    )
+    if next_section:
+        return text[:next_section.start()] + placeholder + "\n" + text[next_section.start():]
+    return text.rstrip() + placeholder
+
+
 def _normalize_report_structure(report: str) -> str:
-    """Guarantee required section headings and repair an empty grant evidence table."""
+    """Guarantee report sections and a meaningful, honest opportunity evidence table."""
     text = (report or "").strip()
     if not text:
         text = "# Grant Strategy Report\n\nNo report text was returned by the model."
 
-    evidence_pattern = r"(?im)^#{1,4}\s*11\.\s*Grant Opportunity Evidence Table\s*$"
-    match = re.search(evidence_pattern, text)
-    if match:
-        body_start = match.end()
-        next_heading = re.search(r"(?m)^#{1,4}\s*12\.\s*Sources and Verification Checklist\s*$", text[body_start:])
+    # Insert any missing sections in order. This does not fabricate report content.
+    for heading in REQUIRED_REPORT_SECTIONS:
+        number, title = heading.split(". ", 1)
+        n = int(number)
+        heading_regex = rf"(?im)^#{{1,4}}\s*{n}\.\s*{re.escape(title)}\b.*$"
+        if not re.search(heading_regex, text):
+            text = _insert_missing_section(text, n, title)
+
+    # Locate Section 11 and stop at the next numbered heading (whatever its number).
+    evidence_match = re.search(
+        r"(?im)^#{1,4}\s*11\.\s*Grant Opportunity Evidence Table\s*$", text
+    )
+    if evidence_match:
+        body_start = evidence_match.end()
+        next_heading = re.search(r"(?m)^#{1,4}\s*\d+\.\s+", text[body_start:])
         body_end = body_start + next_heading.start() if next_heading else len(text)
         body = text[body_start:body_end].strip()
-        # A pipe or header alone is not a meaningful evidence table.
         table_rows = re.findall(r"(?m)^\|.*\|.*\|", body)
+
+        # A single stray Markdown pipe row is not a populated evidence table.
         if len(table_rows) < 2:
             replacement = (
-                "\n\nNo opportunity can be labelled **Verified open** using the evidence returned "
-                "by this run. Search results are leads only; deadlines, eligibility, and award "
-                "amounts need confirmation on the official funder page.\n\n"
+                "\n\nNo opportunity can be labelled **Verified open** from this run's evidence. "
+                "Search results are leads only; deadlines, eligibility, and award amounts must "
+                "be confirmed on the official funder page.\n\n"
                 "| Funder / programme | Official source URL | Status | Deadline / amount | Required next check |\n"
                 "|---|---|---|---|---|\n"
-                "| No verified open call identified from supplied evidence | Not established | Insufficient evidence | Not confirmed | Check official call page, current deadline, legal-form eligibility, geography, and award ceiling. |\n\n"
+                "| No verified open call identified from supplied evidence | Not established | Insufficient evidence | Not confirmed | Confirm active call, legal-form eligibility, geography, deadline, and award ceiling on the official source. |\n\n"
             )
             text = text[:body_start] + replacement + text[body_end:]
 
-    for heading in REQUIRED_REPORT_SECTIONS:
-        heading_regex = r"(?im)^#{1,4}\s*" + re.escape(heading) + r".*$"
-        if not re.search(heading_regex, text):
-            text += (
-                "\n\n## " + heading + "\n\n"
-                "_This section was missing from the generated draft. Complete it using verified "
-                "evidence before submitting or relying on this report._\n"
-            )
-
-    # Keep internal score section after the full 12-section report.
+    # Normalize heading text for the audit section (added after this function).
     text = re.sub(
         r"(?im)^#{1,4}\s*13\.\s*Automated Quality Audit",
         "## 13. Automated Quality Audit",
         text,
     )
     return text
+
 
 
 def generate_grant_report(org_type: str, mission: str) -> str:
