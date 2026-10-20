@@ -290,6 +290,31 @@ def _section_bounds(text: str, section_number: int) -> tuple[int, int] | None:
     return body_start, body_end
 
 
+def _remove_redundant_placeholder_sections(text: str) -> str:
+    """Remove duplicate numbered headings whose only content is an auto-added placeholder."""
+    seen = set()
+    matches = list(re.finditer(r"(?im)^#{1,4}\s*(\d+)\.\s+(.+?)\s*$", text))
+    # Work backwards so removing later sections does not invalidate earlier offsets.
+    for index in range(len(matches) - 1, -1, -1):
+        match = matches[index]
+        number = int(match.group(1))
+        title = match.group(2).strip()
+        end = matches[index + 1].start() if index + 1 < len(matches) else len(text)
+        body = text[match.end():end].strip()
+        key = (number, re.sub(r"\s+", " ", title).lower())
+        # Remove only known auto-generated empty placeholders, never user/model content.
+        is_placeholder = (
+            "This section was missing from the generated draft" in body
+            and len(body) < 260
+        )
+        earlier_same_number = any(
+            int(prev.group(1)) == number for prev in matches[:index]
+        )
+        if is_placeholder and earlier_same_number:
+            text = text[:match.start()] + text[end:]
+    return text
+
+
 def _normalize_report_structure(report: str, source_json: str = "[]") -> str:
     """Guarantee section structure and populate evidence/checklist sections from search URLs."""
     text = (report or "").strip()
@@ -306,6 +331,8 @@ def _normalize_report_structure(report: str, source_json: str = "[]") -> str:
         heading_regex = rf"(?im)^#{{1,4}}\s*{n}\.\s*{re.escape(title_only)}\b.*$"
         if not re.search(heading_regex, text):
             text = _insert_missing_section(text, n, title)
+
+    text = _remove_redundant_placeholder_sections(text)
 
     sources = _source_list(source_json)
 
