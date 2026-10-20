@@ -510,9 +510,6 @@ CURRENT REPORT:
         except Exception as exc:
             logger.warning("Quality revision unavailable (%s); keeping original draft.", type(exc).__name__)
 
-    # Repair malformed/missing headings and the empty opportunity table before rendering.
-    report = _normalize_report_structure(report)
-
     # Reapply deterministic structure after the optional revision model to prevent regressions.
     report = _normalize_report_structure(report, sources)
 
