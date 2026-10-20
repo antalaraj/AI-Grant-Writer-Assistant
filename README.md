@@ -1,116 +1,158 @@
 # AI Grant Writer Assistant 🤖📄
 
-An Agentic AI-powered web application that automates the end-to-end grant writing process for startups and NGOs.
+An AI-powered Flask web application that researches potential grant opportunities and generates a structured grant proposal draft for an organization based on its type and mission.
 
 **🌐 Live Demo:** [grant-writer-assistant.vercel.app](https://grant-writer-assistant.vercel.app/)
 
-This system uses multiple AI agents to:
-- Discover relevant grant opportunities
-- Validate eligibility requirements
-- Generate structured, professional grant proposal reports
+**Repository:** [antalaraj/AI-Grant-Writer-Assistant](https://github.com/antalaraj/AI-Grant-Writer-Assistant)
 
 ---
 
-## 🔍 Problem Statement
+## ✨ Features
 
-Grant writing is complex, time-consuming, and requires strong research and writing skills.  
-Many startups and NGOs struggle to:
-- Find suitable funding programs  
-- Understand eligibility rules  
-- Write professional proposals that meet funder expectations  
+- **Grant research:** Searches the web for potential funding opportunities using DuckDuckGo Search (`ddgs`).
+- **Structured proposal generation:** Uses Groq to draft a report tailored to the organization type and mission.
+- **Optional second-provider validation:** Gemini is configured as an optional model integration; the core draft generation requires Groq.
+- **Evidence-first reporting:** Includes source links and labels search results as unverified leads unless independently verified.
+- **Deterministic report structure:** Ensures the report contains the required proposal sections and builds the opportunity evidence table from collected search records.
+- **Verification checklist:** Lists key items to confirm before applying, including call status, eligibility, deadlines, funding limits, and required documents.
+- **Automated quality audit:** Attempts an internal checklist review and may make one revision pass when the audit succeeds. The audit is optional; rate limits or provider errors can leave the report without a score.
+- **Browser-based PDF export:** The result page provides **Download / Save as PDF**, implemented through the browser print dialog. It is not a server-side PDF-generation service.
 
----
-
-## 🚀 Solution
-
-AI Grant Writer Assistant solves this problem using **Agentic AI architecture**, where multiple specialized AI agents collaborate to complete the entire workflow automatically.
-
-### AI Agents:
-- **Research Agent** – Finds active grant opportunities  
-- **Validation Agent** – Checks eligibility and risk factors  
-- **Writer Agent** – Generates funder-ready proposal reports  
+> **Important:** A search result or official portal is not proof that a grant call is currently open or that an applicant is eligible. Verify the official call documents and applicant details before submitting a proposal. The automated quality score, when available, is an internal checklist estimate—not a prediction of funding success.
 
 ---
 
-## 🛠 Tech Stack
+## 🧰 Tech Stack
 
-- Python  
-- CrewAI (Agent orchestration)  
-- Groq (LLaMA 3.3)  
-- Gemini 2.5 Flash  
-- Flask  
-- HTML / CSS / JavaScript  
+- **Language:** Python
+- **Web framework:** Flask
+- **Draft generation:** Groq API — `openai/gpt-oss-120b`
+- **Optional model integration:** Google Gemini API — `gemini-3.8-flash`
+- **Grant search:** DuckDuckGo Search via `ddgs`
+- **Frontend:** HTML, CSS, JavaScript
+- **Markdown rendering:** Marked.js and DOMPurify
+- **Deployment:** Vercel
 
----
-
-## ✨ Key Features
-
-- Multi-agent AI workflow  
-- Real-time grant discovery using web search  
-- Automatic eligibility validation  
-- Professional Markdown proposal generation  
-- Flask-based web interface  
-- Downloadable grant strategy report  
+The current implementation calls the provider APIs directly from `grant_workflow.py`; the dependencies do not include CrewAI or LangChain.
 
 ---
 
-## ☁️ Deploy to Vercel
+## 🔄 How It Works
 
-This repository can be deployed as a Flask application on Vercel.
+1. Enter the **organization type** and **project mission** in the web form.
+2. The backend searches for potential grant sources and funding leads.
+3. Groq generates the structured grant strategy/proposal draft.
+4. The application normalizes the required sections and builds the source evidence table and verification checklist.
+5. An optional quality-audit pass reviews the report. If the audit succeeds and the score is below the configured threshold, one revision attempt may be made.
+6. The report is rendered in the browser, where you can print or save it as a PDF.
 
-### 1. Import the repository
-1. Open the [Vercel dashboard](https://vercel.com/new).
-2. Import `antalaraj/AI-Grant-Writer-Assistant` from GitHub.
-3. Use the repository root as the project root. Vercel detects the Flask entry point in `app.py`.
+### Report sections
 
-### 2. Add environment variables
-In **Project Settings → Environment Variables**, add both API keys for Preview and Production as appropriate:
+The workflow aims to provide these 12 core sections:
 
-- `GROQ_API_KEY` — your Groq API key
-- `GEMINI_API_KEY` — your Gemini API key
+1. Executive Summary
+2. Organizational Overview
+3. Problem Statement
+4. Proposed Solution & Innovation
+5. Funder Value Proposition
+6. 1-Page Proposal Skeleton
+7. Budget Logic Overview
+8. Impact Metrics & KPIs
+9. Risk & Mitigation
+10. 5-Step Submission Roadmap
+11. Grant Opportunity Evidence Table
+12. Sources and Verification Checklist
 
-Optionally add `FLASK_SECRET_KEY` as a long random secret. Do not commit API keys to GitHub or expose them in frontend JavaScript.
+A 13th section, **Automated Quality Audit**, is appended to explain the internal checklist result or state that the audit could not be completed.
 
-### 3. Deploy
-Deploy the project from Vercel. The included `vercel.json` sets a 300-second function duration; a workflow can still time out if it exceeds the maximum duration permitted by the selected Vercel plan and compute configuration.
+---
 
-### Deployment notes
-- **Live application:** [https://grant-writer-assistant.vercel.app/](https://grant-writer-assistant.vercel.app/)
-- The Flask frontend and server-side workflow run as a Python application; frontend assets are served from `public/`.
-- Grant reports are returned in the HTTP response. The deployed function should not be treated as persistent storage for generated files.
-- Check Vercel's function logs if report generation fails. The workflow calls Groq, Gemini, and DuckDuckGo search services, so their API availability and rate limits can affect requests.
-
-## 🧪 How to Run Locally
+## 🖥️ Run Locally
 
 ### 1. Clone the repository
+
 ```bash
 git clone https://github.com/antalaraj/AI-Grant-Writer-Assistant.git
 cd AI-Grant-Writer-Assistant
 ```
 
-### 2. Set API keys (Windows)
-```bat
-set GROQ_API_KEY=your_key_here
-set GEMINI_API_KEY=your_key_here
+### 2. Create and activate a virtual environment (recommended)
+
+**Windows PowerShell:**
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
 ```
 
-### 3. Run the application
+**macOS/Linux:**
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+### 3. Install dependencies
+
+```bash
+python -m pip install -r requirements.txt
+```
+
+### 4. Configure environment variables
+
+Set `GROQ_API_KEY` for report drafting. `GEMINI_API_KEY` enables the optional Gemini integration.
+
+**Windows PowerShell:**
+
+```powershell
+$env:GROQ_API_KEY = "your_groq_api_key"
+$env:GEMINI_API_KEY = "your_gemini_api_key"
+```
+
+**macOS/Linux:**
+
+```bash
+export GROQ_API_KEY="your_groq_api_key"
+export GEMINI_API_KEY="your_gemini_api_key"
+```
+
+Optionally set `FLASK_SECRET_KEY` to a long random secret. Never commit API keys to the repository or expose them in frontend JavaScript.
+
+### 5. Start the app
+
 ```bash
 python web.py
 ```
 
-Open in browser:  
-http://127.0.0.1:5000  
+Open [http://127.0.0.1:5000](http://127.0.0.1:5000).
 
 ---
 
-## 📊 System Workflow
+## ☁️ Vercel Deployment
 
-1. User enters organization type and mission  
-2. Research Agent finds relevant grants  
-3. Validation Agent checks eligibility  
-4. Writer Agent generates proposal  
-5. Final report is displayed in web UI  
+The repository includes `app.py` as the Vercel entry point and `vercel.json` to configure a maximum function duration of 300 seconds.
+
+1. Import [the GitHub repository](https://github.com/antalaraj/AI-Grant-Writer-Assistant) into Vercel.
+2. Set the project root to the repository root.
+3. Configure `GROQ_API_KEY` in the Vercel project's environment variables. Add `GEMINI_API_KEY` if you want the optional Gemini integration.
+4. Deploy the project.
+
+**Live application:** [https://grant-writer-assistant.vercel.app/](https://grant-writer-assistant.vercel.app/)
+
+The maximum duration configured in `vercel.json` is subject to the limits of the Vercel plan and runtime. Provider availability, search-service behavior, and API rate limits can affect report generation. Check the Vercel function logs if a request fails.
+
+---
+
+## 🧪 Tests
+
+The repository includes regression tests for report structure and evidence-table behavior, plus CI checks for Python compilation, required deployment files, and Flask routes.
+
+Run the report-structure tests locally:
+
+```bash
+python -m unittest discover -s tests -v
+```
 
 ---
 
@@ -118,37 +160,39 @@ http://127.0.0.1:5000
 
 ```text
 AI-Grant-Writer-Assistant/
-├── app.py                 # Vercel Flask entry point
-├── web.py                 # Flask routes and local server
-├── grant_workflow.py      # CrewAI agents and report generation
-├── requirements.txt
-├── vercel.json
+├── app.py                       # Vercel Flask entry point
+├── web.py                       # Flask routes and local server
+├── grant_workflow.py             # Search, drafting, report normalization, audit
+├── requirements.txt              # Flask and ddgs dependencies
+├── vercel.json                   # Vercel function configuration
 ├── .python-version
 ├── public/
-│   ├── style.css
-│   └── main.js
+│   ├── style.css                 # Frontend styling and print styles
+│   └── main.js                   # Form submission and report rendering
 ├── templates/
-│   ├── index.html
-│   ├── loading.html
-│   └── result.html
-└── static/                # Original asset copies retained for local compatibility
+│   ├── index.html                # Input form
+│   ├── loading.html              # Loading state
+│   └── result.html               # Report result and print/PDF action
+├── tests/
+│   └── test_report_structure.py  # Report normalization regression tests
+└── .github/
+    └── workflows/
+        └── ci.yml                # Python CI and Flask smoke tests
 ```
 
 ---
 
 ## 👨‍💻 Author
-Raj Antala  
-🎓 PGDM Student in AI and Data Science  
-🏫 Adani Institute of Digital Technology Management (AIDTM)  
-📍 Gandhinagar, India  
-📧 antalaraj214@gmail.com  
-🔗 www.linkedin.com/in/antalaraj
 
-Passionate about building intelligent systems and real-world AI applications.
+**Raj Antala**  
+PGDM Student in AI and Data Science  
+Adani Institute of Digital Technology Management (AIDTM)  
+Gandhinagar, India  
+Email: antalaraj214@gmail.com  
+LinkedIn: [linkedin.com/in/antalaraj](https://www.linkedin.com/in/antalaraj)
 
 ---
 
 ## 📌 Disclaimer
 
-This project is built for educational and demonstration purposes.  
-Users must provide their own API keys to run the system.
+This project is intended for educational and demonstration purposes. It generates proposal drafts and research leads, not guaranteed funding outcomes. Users are responsible for checking official grant documents, confirming eligibility and deadlines, validating all applicant information and budget figures, and reviewing the final proposal before submission.
