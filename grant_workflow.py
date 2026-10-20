@@ -175,11 +175,11 @@ Date: {today}
 Organization type: {org_type}
 Mission: {mission}
 
-Score each criterion from 0 to its maximum:
+Score each criterion from 0 to its maximum; the weights must total exactly 100:
 - source quality and direct official URLs (20)
 - evidence-backed opportunity status, deadlines, and eligibility (20)
 - tailoring to applicant mission and geography (15)
-- completeness of all 10 required report sections (15)
+- completeness and substantive content of all 12 required report sections (15)
 - actionable, internally consistent proposal plan (10)
 - budget logic without invented costs or unsupported totals (5)
 - measurable KPIs with baseline/target/timeframe and labelled assumptions (5)
@@ -256,19 +256,28 @@ def _source_list(source_json: str) -> list[dict]:
     if not isinstance(records, list):
         return []
     clean = []
+    seen_urls = set()
+    seen_domains = set()
     for row in records:
         if not isinstance(row, dict):
             continue
         url = str(row.get("url") or "").strip()
         if not url.startswith(("https://", "http://")):
             continue
+        domain = str(row.get("domain") or _domain(url)).lower()
+        canonical_url = url.rstrip("/").split("#", 1)[0]
+        if canonical_url in seen_urls or (domain and domain in seen_domains):
+            continue
+        seen_urls.add(canonical_url)
+        if domain:
+            seen_domains.add(domain)
         clean.append({
             "title": str(row.get("title") or "Untitled search result").replace("|", "\\|").replace("\n", " ")[:140],
             "url": url.replace("|", "%7C"),
-            "domain": str(row.get("domain") or _domain(url)),
+            "domain": domain,
             "source_tier": str(row.get("source_tier") or _source_tier(url)),
         })
-    return clean[:8]
+    return clean[:6]
 
 
 def _section_bounds(text: str, section_number: int) -> tuple[int, int] | None:
@@ -281,6 +290,31 @@ def _section_bounds(text: str, section_number: int) -> tuple[int, int] | None:
     return body_start, body_end
 
 
+def _remove_redundant_placeholder_sections(text: str) -> str:
+    """Remove duplicate numbered headings whose only content is an auto-added placeholder."""
+    seen = set()
+    matches = list(re.finditer(r"(?im)^#{1,4}\s*(\d+)\.\s+(.+?)\s*$", text))
+    # Work backwards so removing later sections does not invalidate earlier offsets.
+    for index in range(len(matches) - 1, -1, -1):
+        match = matches[index]
+        number = int(match.group(1))
+        title = match.group(2).strip()
+        end = matches[index + 1].start() if index + 1 < len(matches) else len(text)
+        body = text[match.end():end].strip()
+        key = (number, re.sub(r"\s+", " ", title).lower())
+        # Remove only known auto-generated empty placeholders, never user/model content.
+        is_placeholder = (
+            "This section was missing from the generated draft" in body
+            and len(body) < 260
+        )
+        earlier_same_number = any(
+            int(prev.group(1)) == number for prev in matches[:index]
+        )
+        if is_placeholder and earlier_same_number:
+            text = text[:match.start()] + text[end:]
+    return text
+
+
 def _normalize_report_structure(report: str, source_json: str = "[]") -> str:
     """Guarantee section structure and populate evidence/checklist sections from search URLs."""
     text = (report or "").strip()
@@ -291,9 +325,13 @@ def _normalize_report_structure(report: str, source_json: str = "[]") -> str:
     for heading in REQUIRED_REPORT_SECTIONS:
         number, title = heading.split(". ", 1)
         n = int(number)
+        # The loop splits "6. 1-Page Proposal Skeleton" into number=6 and title="1-Page Proposal Skeleton".
+        # Match the number once, then match only the title (allowing explanatory suffixes).
         heading_regex = rf"(?im)^#{{1,4}}\s*{n}\.\s*{re.escape(title)}\b.*$"
         if not re.search(heading_regex, text):
             text = _insert_missing_section(text, n, title)
+
+    text = _remove_redundant_placeholder_sections(text)
 
     sources = _source_list(source_json)
 
@@ -481,7 +519,7 @@ Rules:
         logger.info("Grant workflow stage=quality_audit started.")
         review_text = _quality_review(report, org_type, mission, today)
         parsed_review = _parse_review(review_text)
-        if parsed_review.get("total_score", 0) > 0 and isinstance(parsed_review.get("required_fixes", []), list):
+        if isinstance(parsed_review.get("total_score"), int) and isinstance(parsed_review.get("required_fixes", []), list):
             review_data = parsed_review
             audit_succeeded = True
     except Exception as exc:

@@ -36,14 +36,16 @@ def run_grant_writer():
     if len(org_type) > 200 or len(mission) > 5000:
         return jsonify({"error": "Organization type or mission is too long."}), 400
 
+    # Groq is required for drafting. Gemini is an optional second-pass validator;
+    # grant_workflow.py already degrades gracefully when Gemini is unavailable.
     missing_keys = [
-        key for key in ("GROQ_API_KEY", "GEMINI_API_KEY")
+        key for key in ("GROQ_API_KEY",)
         if not os.getenv(key)
     ]
     if missing_keys:
         return jsonify({
             "error": "Server configuration is incomplete.",
-            "details": "Configure GROQ_API_KEY and GEMINI_API_KEY in Vercel project settings."
+            "details": "Configure GROQ_API_KEY in Vercel project settings. GEMINI_API_KEY enables optional independent validation."
         }), 503
 
     try:

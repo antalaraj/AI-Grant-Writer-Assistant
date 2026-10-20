@@ -73,6 +73,52 @@ Audit.
         self.assertLess(result.index("## 12. Sources and Verification Checklist"),
                         result.index("## 13. Automated Quality Audit"))
 
+    def test_valid_alternate_heading_does_not_get_duplicate_placeholder(self):
+        report = """## 1. Executive Summary
+Summary.
+## 2. Organizational Overview
+Overview.
+## 3. Problem Statement
+Problem.
+## 4. Proposed Solution & Innovation
+Solution.
+## 5. Funder Value Proposition
+Value.
+## 6. 1-Page Proposal Skeleton (Headings + Bullet Points)
+This is real skeleton content, not a missing section.
+## 7. Budget Logic Overview
+Budget.
+## 8. Impact Metrics & KPIs
+KPIs.
+## 9. Risk & Mitigation
+Risks.
+## 10. 5-Step Submission Roadmap
+Roadmap.
+## 11. Grant Opportunity Evidence Table
+| # |
+## 12. Sources and Verification Checklist
+Checklist.
+"""
+        result = _normalize_report_structure(report, self.sources)
+        self.assertEqual(result.count("## 6. 1-Page Proposal Skeleton"), 1)
+        self.assertEqual(result.count("## 10. 5-Step Submission Roadmap"), 1)
+        self.assertNotIn("This section was missing from the generated draft", result)
+
+    def test_missing_section_is_inserted_once_in_numeric_order(self):
+        report = """## 1. Executive Summary
+Summary.
+## 2. Organizational Overview
+Overview.
+## 4. Proposed Solution & Innovation
+Solution.
+## 11. Grant Opportunity Evidence Table
+| # |
+"""
+        result = _normalize_report_structure(report, self.sources)
+        self.assertEqual(result.count("## 3. Problem Statement"), 1)
+        self.assertLess(result.index("## 3. Problem Statement"),
+                        result.index("## 4. Proposed Solution & Innovation"))
+
 
 if __name__ == "__main__":
     unittest.main()

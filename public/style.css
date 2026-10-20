@@ -293,6 +293,44 @@ input:focus, textarea:focus {
     opacity: 0;
 }
 
+/* Report tables and PDF pagination safeguards. */
+.markdown-body table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: auto;
+    margin: 12px 0 20px;
+    font-size: 9pt;
+    line-height: 1.4;
+}
+.markdown-body thead { display: table-header-group; }
+.markdown-body th,
+.markdown-body td {
+    border: 1px solid #D1D5DB;
+    padding: 5px 6px;
+    text-align: left;
+    vertical-align: top;
+    overflow-wrap: anywhere;
+}
+.markdown-body th { background: #F3F4F6; font-weight: 700; }
+.markdown-body h2,
+.markdown-body h3 {
+    break-after: avoid;
+    page-break-after: avoid;
+}
+.markdown-body p,
+.markdown-body li { orphans: 3; widows: 3; }
+.markdown-body tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+}
+.markdown-body input[type="checkbox"] { display: none; }
+.markdown-body li.task-list-item { list-style: disc; }
+.markdown-body pre {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font-size: 8pt;
+}
+
 /* =========================================
    8. PRINT / SAVE PDF LOGIC (FIXED)
    ========================================= */
