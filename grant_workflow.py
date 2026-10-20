@@ -69,7 +69,7 @@ class GrantTools:
         return (
             "Eligibility Review:\n"
             "- {org_type} verified\n"
-            "- Deadline assumed active for 2025\n"
+            "- Deadline assumed active for today\n"
             "- Geographic restrictions must be confirmed\n"
             "- Matching funds requirement unclear (risk flagged)"
         )
