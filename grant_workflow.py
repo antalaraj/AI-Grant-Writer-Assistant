@@ -38,17 +38,17 @@ if not os.getenv("GROQ_API_KEY") or not os.getenv("GEMINI_API_KEY"):
 # 4. LLM CONFIGURATION
 # ================================================================
 research_llm = LLM(
-    model="groq/llama-3.3-70b-versatile",
+    model="groq/openai/gpt-oss-120b",
     temperature=0.2
 )
 
 validation_llm = LLM(
-    model="gemini/gemini-2.5-flash",
+    model="gemini/gemini-3.8-flash",
     temperature=0.1
 )
 
 writing_llm = LLM(
-    model="groq/llama-3.3-70b-versatile",
+    model="groq/openai/gpt-oss-120b",
     temperature=0.2
 )
 
