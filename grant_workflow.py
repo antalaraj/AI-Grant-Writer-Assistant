@@ -7,7 +7,6 @@ import json
 import os
 from datetime import date
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 GROQ_MODEL = "openai/gpt-oss-120b"
@@ -64,8 +63,8 @@ def _gemini_generate(prompt: str) -> str:
     if not api_key:
         raise RuntimeError("GEMINI_API_KEY is not configured.")
     url = (
-        f"https://generativelanguage.googleapis.com/v1beta/models/"
-        f"{GEMINI_MODEL}:generateContent?{urlencode({'key': api_key})}"
+        "https://generativelanguage.googleapis.com/v1beta/models/"
+        f"{GEMINI_MODEL}:generateContent"
     )
     data = _post_json(
         url,
@@ -73,6 +72,7 @@ def _gemini_generate(prompt: str) -> str:
             "contents": [{"parts": [{"text": prompt}]}],
             "generationConfig": {"temperature": 0.1},
         },
+        {"x-goog-api-key": api_key},
     )
     try:
         parts = data["candidates"][0]["content"]["parts"]
