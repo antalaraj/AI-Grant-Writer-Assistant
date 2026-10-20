@@ -19,7 +19,12 @@ logger = logging.getLogger(__name__)
 def _post_json(url: str, payload: dict, headers: dict | None = None) -> dict:
     """POST JSON and return the decoded response with useful API errors."""
     body = json.dumps(payload).encode("utf-8")
-    request_headers = {"Content-Type": "application/json"}
+    request_headers = {
+        "Content-Type": "application/json",
+        # Groq's Cloudflare edge rejects urllib's default Python-urllib user agent
+        # with HTTP 403 / error 1010. Identify this application explicitly.
+        "User-Agent": "AI-Grant-Writer-Assistant/1.0",
+    }
     if headers:
         request_headers.update(headers)
     req = Request(url, data=body, headers=request_headers, method="POST")
