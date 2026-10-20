@@ -232,8 +232,11 @@ REQUIRED_REPORT_SECTIONS = [
 def _insert_missing_section(text: str, section_number: int, title: str) -> str:
     """Insert a placeholder section in numeric order instead of appending out of order."""
     heading = f"## {section_number}. {title}"
-    higher_numbers = "|".join(str(n) for n in range(section_number + 1, 13))
-    next_section = re.search(rf"(?im)^#{{1,4}}\s*(?:{higher_numbers})\.\s+", text) if higher_numbers else None
+    next_section = None
+    for candidate in re.finditer(r"(?im)^#{1,4}\s*(\d+)\.\s+", text):
+        if int(candidate.group(1)) > section_number:
+            next_section = candidate
+            break
     placeholder = (
         f"\n\n{heading}\n\n"
         "_This section was missing from the generated draft. Complete it using verified "
