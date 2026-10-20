@@ -212,6 +212,154 @@ def _parse_review(review: str) -> dict:
                 "required_fixes": ["Manually review source quality, eligibility, deadlines, and all sections."]}
 
 
+
+REQUIRED_REPORT_SECTIONS = [
+    "1. Executive Summary",
+    "2. Organizational Overview",
+    "3. Problem Statement",
+    "4. Proposed Solution & Innovation",
+    "5. Funder Value Proposition",
+    "6. 1-Page Proposal Skeleton",
+    "7. Budget Logic Overview",
+    "8. Impact Metrics & KPIs",
+    "9. Risk & Mitigation",
+    "10. 5-Step Submission Roadmap",
+    "11. Grant Opportunity Evidence Table",
+    "12. Sources and Verification Checklist",
+]
+
+
+def _insert_missing_section(text: str, section_number: int, title: str) -> str:
+    """Insert a placeholder section in numeric order instead of appending out of order."""
+    heading = f"## {section_number}. {title}"
+    next_section = None
+    for candidate in re.finditer(r"(?im)^#{1,4}\s*(\d+)\.\s+", text):
+        if int(candidate.group(1)) > section_number:
+            next_section = candidate
+            break
+    placeholder = (
+        f"\n\n{heading}\n\n"
+        "_This section was missing from the generated draft. Complete it using verified "
+        "evidence before submitting or relying on this report._\n"
+    )
+    if next_section:
+        return text[:next_section.start()] + placeholder + "\n" + text[next_section.start():]
+    return text.rstrip() + placeholder
+
+
+def _source_list(source_json: str) -> list[dict]:
+    """Parse search records defensively; URLs remain leads, not verified grant calls."""
+    try:
+        records = json.loads(source_json or "[]")
+    except (ValueError, TypeError):
+        return []
+    if not isinstance(records, list):
+        return []
+    clean = []
+    for row in records:
+        if not isinstance(row, dict):
+            continue
+        url = str(row.get("url") or "").strip()
+        if not url.startswith(("https://", "http://")):
+            continue
+        clean.append({
+            "title": str(row.get("title") or "Untitled search result").replace("|", "\\|").replace("\n", " ")[:140],
+            "url": url.replace("|", "%7C"),
+            "domain": str(row.get("domain") or _domain(url)),
+            "source_tier": str(row.get("source_tier") or _source_tier(url)),
+        })
+    return clean[:8]
+
+
+def _section_bounds(text: str, section_number: int) -> tuple[int, int] | None:
+    match = re.search(rf"(?im)^#{{1,4}}\s*{section_number}\.\s+.*$", text)
+    if not match:
+        return None
+    body_start = match.end()
+    next_heading = re.search(r"(?m)^#{1,4}\s*\d+\.\s+", text[body_start:])
+    body_end = body_start + next_heading.start() if next_heading else len(text)
+    return body_start, body_end
+
+
+def _normalize_report_structure(report: str, source_json: str = "[]") -> str:
+    """Guarantee section structure and populate evidence/checklist sections from search URLs."""
+    text = (report or "").strip()
+    if not text:
+        text = "# Grant Strategy Report\n\nNo report text was returned by the model."
+
+    # Missing headings get explicit placeholders, inserted in numeric order.
+    for heading in REQUIRED_REPORT_SECTIONS:
+        number, title = heading.split(". ", 1)
+        n = int(number)
+        heading_regex = rf"(?im)^#{{1,4}}\s*{n}\.\s*{re.escape(title)}\b.*$"
+        if not re.search(heading_regex, text):
+            text = _insert_missing_section(text, n, title)
+
+    sources = _source_list(source_json)
+
+    # Generate this table from raw search records instead of trusting the model to
+    # preserve a Markdown table. The search provider has not verified page contents.
+    bounds = _section_bounds(text, 11)
+    if bounds:
+        body_start, body_end = bounds
+        rows = [
+            "\n\nSearch results below are **potential leads only**. They are not confirmed grant calls. "
+            "No result is labelled open or eligible because this workflow has not independently "
+            "verified the official call page.\n\n",
+            "| Search-result title | Source URL | Source tier | Status | Required verification |\n",
+            "|---|---|---|---|---|\n",
+        ]
+        if sources:
+            for item in sources:
+                title = item["title"].replace("[", "\\[").replace("]", "\\]")
+                rows.append(
+                    f"| {title} | [Open source]({item['url']}) | {item['source_tier']} | "
+                    "Unverified lead | Confirm active call, eligibility, deadline, funding limit, and application rules on the source page. |\n"
+                )
+        else:
+            rows.append(
+                "| No usable search result | Not available | No URL | Insufficient evidence | Search the official funder portals manually. |\n"
+            )
+        rows.append("\n")
+        text = text[:body_start] + "".join(rows) + text[body_end:]
+
+    # Replace Section 12 with a reliable operational checklist and source inventory.
+    # This preserves URLs and does not assert that any call is currently open.
+    bounds = _section_bounds(text, 12)
+    if bounds:
+        body_start, body_end = bounds
+        checklist = [
+            "\n\n### Verification checklist before applying\n\n",
+            "- [ ] Open the official funder/programme page and confirm a current call is accepting applications.\n",
+            "- [ ] Confirm the applicant's legal form and registration satisfy the call's rules.\n",
+            "- [ ] Confirm Gujarat/Dahod and the proposed health activities are in scope.\n",
+            "- [ ] Record the deadline, time zone, award minimum/maximum, and eligible cost categories.\n",
+            "- [ ] Check matching-fund requirements, restrictions, required attachments, and reporting duties.\n",
+            "- [ ] Save the call-for-proposals document and record the date it was checked.\n\n",
+            "### Search-result source inventory (not proof of an open grant)\n\n",
+        ]
+        if sources:
+            for item in sources:
+                checklist.append(
+                    f"- [{item['title']}]({item['url']}) — {item['source_tier']}; "
+                    "page contents, grant status, and eligibility still require verification.\n"
+                )
+        else:
+            checklist.append(
+                "- No usable search URLs were returned. Search official government, state health, CSR, and foundation portals directly.\n"
+            )
+        checklist.append("\n")
+        text = text[:body_start] + "".join(checklist) + text[body_end:]
+
+    text = re.sub(
+        r"(?im)^#{1,4}\s*13\.\s*Automated Quality Audit",
+        "## 13. Automated Quality Audit",
+        text,
+    )
+    return text
+
+
+
 def generate_grant_report(org_type: str, mission: str) -> str:
     """Search, validate, draft, score, and revise a grant strategy report."""
     today = date.today().isoformat()
@@ -258,9 +406,14 @@ evidence before "Verified open". Return concise corrections. Mark unknowns expli
 
     system = (
         "You are a senior grant strategist and meticulous editor. Produce useful, polished "
-        "Markdown, grounded in evidence. Never fabricate facts, citations, grant terms, budget "
-        "numbers, outcomes, or applicant history. Label proposed targets as illustrative and "
-        "requiring applicant approval. If research is weak, say so and give a research plan."
+        "Markdown, grounded only in the applicant's supplied facts and the explicit evidence "
+        "provided in the research notes. Never use model memory as proof of a local statistic, "
+        "health prevalence, service distance, government scheme, deadline, award amount, or "
+        "funder eligibility. Never invent facts, citations, budget numbers, outcomes, or applicant "
+        "history. A search snippet is not enough to assert that a grant is open or that a local "
+        "statistic is accurate. Where evidence or URLs are missing, write 'Not verified from the "
+        "available sources' and give a specific verification action. Label proposed targets as "
+        "illustrative and requiring applicant approval. If research is weak, be transparent."
     )
     prompt = f"""Create a comprehensive Grant Strategy Report.
 Current date: {today}
@@ -294,6 +447,10 @@ Rules:
   deadline/amount only if supported, and verification needed.
 - Cite each grant-specific factual claim with its source URL inline. Do not cite generic articles
   as proof of a current grant call.
+- Do not assert local health statistics, disease prevalence, travel distances, facility coverage,
+  or scheme rules from model memory. Include such facts only when the supplied evidence record
+  explicitly supports the claim and its URL; otherwise write "Not verified from the available
+  sources" and recommend a named data source or local baseline survey.
 - Use "Not provided by applicant" for missing organizational facts; do not invent registration,
   track record, staff, partnerships, or prior outcomes.
 - Proposed KPIs must be labelled "illustrative targets—confirm with applicant"; state baseline,
@@ -307,6 +464,9 @@ Rules:
 
     logger.info("Grant workflow stage=initial_report started.")
     report = _groq_chat(system, prompt, temperature=0.15)
+
+    # Repair missing sections and derive evidence tables from real search URLs before audit.
+    report = _normalize_report_structure(report, sources)
 
     # The draft is the deliverable. Auditing and revision are enhancements, so
     # rate limits or malformed audit output must never turn a usable draft into HTTP 500.
@@ -358,6 +518,9 @@ CURRENT REPORT:
                 logger.warning("Revision response was unexpectedly short; keeping original draft.")
         except Exception as exc:
             logger.warning("Quality revision unavailable (%s); keeping original draft.", type(exc).__name__)
+
+    # Reapply deterministic structure after the optional revision model to prevent regressions.
+    report = _normalize_report_structure(report, sources)
 
     # Append transparent QA information; never imply the score guarantees funding success.
     qa = {
