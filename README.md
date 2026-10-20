@@ -2,6 +2,8 @@
 
 An Agentic AI-powered web application that automates the end-to-end grant writing process for startups and NGOs.
 
+**🌐 Live Demo:** [grant-writer-assistant.vercel.app](https://grant-writer-assistant.vercel.app/)
+
 This system uses multiple AI agents to:
 - Discover relevant grant opportunities
 - Validate eligibility requirements
@@ -73,23 +75,29 @@ Optionally add `FLASK_SECRET_KEY` as a long random secret. Do not commit API key
 Deploy the project from Vercel. The included `vercel.json` sets a 300-second function duration; a workflow can still time out if it exceeds the maximum duration permitted by the selected Vercel plan and compute configuration.
 
 ### Deployment notes
+- **Live application:** [https://grant-writer-assistant.vercel.app/](https://grant-writer-assistant.vercel.app/)
 - The Flask frontend and server-side workflow run as a Python application; frontend assets are served from `public/`.
 - Grant reports are returned in the HTTP response. The deployed function should not be treated as persistent storage for generated files.
 - Check Vercel's function logs if report generation fails. The workflow calls Groq, Gemini, and DuckDuckGo search services, so their API availability and rate limits can affect requests.
-- The project has not been verified with a live Vercel deployment as part of these source changes.
 
 ## 🧪 How to Run Locally
 
 ### 1. Clone the repository
-git clone https://github.com/antalaraj/AI-Grant-Writer-Assistant.git  
-cd AI-Grant-Writer-Assistant   
+```bash
+git clone https://github.com/antalaraj/AI-Grant-Writer-Assistant.git
+cd AI-Grant-Writer-Assistant
+```
 
 ### 2. Set API keys (Windows)
-set GROQ_API_KEY=your_key_here  
-set GEMINI_API_KEY=your_key_here  
+```bat
+set GROQ_API_KEY=your_key_here
+set GEMINI_API_KEY=your_key_here
+```
 
 ### 3. Run the application
-python web.py  
+```bash
+python web.py
+```
 
 Open in browser:  
 http://127.0.0.1:5000  
