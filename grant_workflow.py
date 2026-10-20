@@ -61,7 +61,7 @@ class GrantTools:
     def grant_search(query: str) -> str:
         """Search grant opportunities open for applications as of {today}."""
         search = DuckDuckGoSearchRun()
-        return search.run(f"{query} 2025 grant funding opportunity")
+        return search.run(f"{query} grant funding opportunity deadline after {date.today().isoformat()}")
 
     @tool("eligibility_check_tool")
     def eligibility_check(grant_info: str) -> str:
