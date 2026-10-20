@@ -1,5 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     const form = document.getElementById('grant-form');
+    if (!form) return;
+    const submitButton = document.getElementById('submit-btn');
     const inputCard = document.getElementById('input-card');
     const loadingContainer = document.getElementById('loading-container');
     const resultContainer = document.getElementById('result-container');
@@ -30,8 +32,13 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             if (!response.ok) {
-                const errData = await response.json();
-                throw new Error(errData.error || 'Unknown error occurred');
+                const contentType = response.headers.get('content-type') || '';
+                let message = `Request failed (${response.status}). Please try again.`;
+                if (contentType.includes('application/json')) {
+                    const errData = await response.json();
+                    message = [errData.error, errData.details].filter(Boolean).join(' ');
+                }
+                throw new Error(message);
             }
 
             // 3. Render Result
@@ -65,13 +72,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 rawText = rawText.replace(/^[#=\s]+$/gm, "").trim();
 
                 // D. Render Clean Markdown
-                markdownOutputDiv.innerHTML = marked.parse(rawText);
+                const renderedMarkdown = marked.parse(rawText);
+                markdownOutputDiv.innerHTML = window.DOMPurify
+                    ? DOMPurify.sanitize(renderedMarkdown)
+                    : document.createTextNode(rawText).textContent;
             }
 
         } catch (error) {
             loadingContainer.style.display = 'none';
             inputCard.style.display = 'block';
-            alert(`Error: ${error.message}`);
+            alert(`Error: ${error.message || 'Unexpected error. Please try again.'}`);
         }
     });
 });
