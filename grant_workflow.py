@@ -385,8 +385,10 @@ def _normalize_report_structure(report: str, source_json: str = "[]") -> str:
                     if is_portal else
                     "Confirm active call, eligibility, deadline, funding limit, and application rules on the source page."
                 )
+                # Keep the stable link label used by existing tests/integrations,
+                # while placing the descriptive title beside it in the same compact cell.
                 rows.append(
-                    f"| [{title}]({item['url']}) — {item['source_tier']} | "
+                    f"| [Open source]({item['url']}) — {title} — {item['source_tier']} | "
                     f"{status} | {verification} |\n"
                 )
         else:
