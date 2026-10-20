@@ -1,0 +1,33 @@
+name: Python CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main, "deploy/**"]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip && pip install -r requirements.txt
+      - name: Compile Python files
+        run: python -m compileall -q app.py web.py grant_workflow.py
+      - name: Check required deployment files
+        run: |
+          test -f vercel.json
+          test -f requirements.txt
+          test -f templates/index.html
+          test -f templates/loading.html
+          test -f templates/result.html
+          test -f public/style.css
+          test -f public/main.js
