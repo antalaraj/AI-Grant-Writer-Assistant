@@ -110,17 +110,20 @@ http://127.0.0.1:5000
 
 ```text
 AI-Grant-Writer-Assistant/
-├── app.py
-├── web.py
-│
+├── app.py                 # Vercel Flask entry point
+├── web.py                 # Flask routes and local server
+├── grant_workflow.py      # CrewAI agents and report generation
+├── requirements.txt
+├── vercel.json
+├── .python-version
+├── public/
+│   ├── style.css
+│   └── main.js
 ├── templates/
 │   ├── index.html
 │   ├── loading.html
 │   └── result.html
-│
-└── static/
-    ├── css/
-    └── js/
+└── static/                # Original asset copies retained for local compatibility
 ```
 
 ---
