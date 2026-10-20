@@ -85,9 +85,9 @@ def _gemini_generate(prompt: str) -> str:
 def _search_grants(org_type: str, mission: str, today: str) -> str:
     """Find recent candidate grants using DuckDuckGo, without LangChain."""
     try:
-        from duckduckgo_search import DDGS
-    except ImportError:
         from ddgs import DDGS
+    except ImportError as exc:
+        raise RuntimeError("The ddgs search dependency is not installed.") from exc
 
     queries = [
         f"{org_type} grant funding opportunity official deadline {today}",

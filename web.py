@@ -6,8 +6,9 @@ from flask import Flask, render_template, request, jsonify
 os.environ.setdefault("LITELLM_LOG", "CRITICAL")
 os.environ.setdefault("OTEL_SDK_DISABLED", "true")
 os.environ.setdefault("PYTHONWARNINGS", "ignore")
-logging.basicConfig(level=logging.CRITICAL)
-warnings.filterwarnings("ignore")
+logging.basicConfig(level=logging.INFO)
+logging.getLogger("werkzeug").setLevel(logging.INFO)
+# Keep runtime warnings visible while diagnosing deployment issues.
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.getenv("FLASK_SECRET_KEY", os.urandom(32).hex())
@@ -51,8 +52,9 @@ def run_grant_writer():
         from grant_workflow import generate_grant_report
         report = generate_grant_report(org_type, mission)
         return render_template("result.html", raw_output=report)
-    except Exception:
-        app.logger.exception("Grant report generation failed")
+    except Exception as exc:
+        # Keep full traceback in Vercel logs; do not expose provider responses to visitors.
+        app.logger.exception("Grant report generation failed (%s)", type(exc).__name__)
         return jsonify({
             "error": "The grant-writing workflow failed.",
             "details": "Check the Vercel function logs and verify your API keys and dependency versions."
