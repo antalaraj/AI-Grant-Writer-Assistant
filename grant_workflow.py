@@ -4,6 +4,7 @@ Uses direct provider HTTP APIs instead of CrewAI/LangChain to keep the
 Python function bundle below Vercel's 500 MB limit.
 """
 import json
+import logging
 import os
 from datetime import date
 from urllib.error import HTTPError, URLError
@@ -12,6 +13,7 @@ from urllib.request import Request, urlopen
 GROQ_MODEL = "openai/gpt-oss-120b"
 GEMINI_MODEL = "gemini-3.8-flash"
 HTTP_TIMEOUT_SECONDS = 90
+logger = logging.getLogger(__name__)
 
 
 def _post_json(url: str, payload: dict, headers: dict | None = None) -> dict:
@@ -117,15 +119,29 @@ def _search_grants(org_type: str, mission: str, today: str) -> str:
                     "snippet": f"Search did not complete for one query: {type(exc).__name__}",
                 })
     if not found:
-        raise RuntimeError("Grant web search returned no results. Please try again.")
+        # Search may return zero results in a serverless environment. Continue
+        # without evidence rather than failing before the AI workflow can run.
+        logger.warning("Grant search returned zero results; continuing without web evidence.")
+        found.append({
+            "title": "No search results available",
+            "url": "",
+            "snippet": (
+                "The web search returned no results. Do not name or rank specific grants "
+                "unless supported by supplied evidence. Tell the user to verify opportunities "
+                "directly with official funders."
+            ),
+        })
+    logger.info("Grant search completed with %d result records.", len(found))
     return json.dumps(found[:12], ensure_ascii=False, indent=2)
 
 
 def generate_grant_report(org_type: str, mission: str) -> str:
     """Search, validate, and draft a Markdown grant strategy report."""
     today = date.today().isoformat()
+    logger.info("Grant workflow stage=search started.")
     sources = _search_grants(org_type, mission, today)
 
+    logger.info("Grant workflow stage=groq_research started.")
     research = _groq_chat(
         "You are a careful grant research analyst. Use only the supplied search results. "
         "Never invent funders, amounts, deadlines, eligibility rules, or URLs. "
@@ -142,6 +158,7 @@ award amount only if stated in the supplied results, deadline only if stated, li
 and what still needs verification. If no credible opportunity is evident, say so.""",
     )
 
+    logger.info("Grant workflow stage=gemini_validation started.")
     validation = _gemini_generate(
         f"""You are a strict grant eligibility and fact-checking reviewer.
 Today's date: {today}
@@ -158,6 +175,7 @@ and financial constraints where information is available. Rank opportunities Hig
 Medium Match, or Rejected, and explain risks. Never invent facts."""
     )
 
+    logger.info("Grant workflow stage=groq_report started.")
     report = _groq_chat(
         "You are a grant proposal strategist. Write concise, credible, reviewer-friendly Markdown. "
         "Do not invent organizational facts, grant terms, budgets, metrics, or deadlines. "
@@ -189,4 +207,5 @@ Do not fabricate applicant-specific facts. Use placeholders where details are mi
 strategy and roadmap, clearly distinguish potential leads from grants confirmed open and eligible.
 Include source URLs from the research notes where relevant. If evidence is weak, say so explicitly.""",
     )
+    logger.info("Grant workflow completed successfully.")
     return report
