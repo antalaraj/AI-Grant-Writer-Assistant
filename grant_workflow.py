@@ -212,6 +212,67 @@ def _parse_review(review: str) -> dict:
                 "required_fixes": ["Manually review source quality, eligibility, deadlines, and all sections."]}
 
 
+
+REQUIRED_REPORT_SECTIONS = [
+    "1. Executive Summary",
+    "2. Organizational Overview",
+    "3. Problem Statement",
+    "4. Proposed Solution & Innovation",
+    "5. Funder Value Proposition",
+    "6. 1-Page Proposal Skeleton",
+    "7. Budget Logic Overview",
+    "8. Impact Metrics & KPIs",
+    "9. Risk & Mitigation",
+    "10. 5-Step Submission Roadmap",
+    "11. Grant Opportunity Evidence Table",
+    "12. Sources and Verification Checklist",
+]
+
+
+def _normalize_report_structure(report: str) -> str:
+    """Guarantee required section headings and repair an empty grant evidence table."""
+    text = (report or "").strip()
+    if not text:
+        text = "# Grant Strategy Report\n\nNo report text was returned by the model."
+
+    evidence_pattern = r"(?im)^#{1,4}\s*11\.\s*Grant Opportunity Evidence Table\s*$"
+    match = re.search(evidence_pattern, text)
+    if match:
+        body_start = match.end()
+        next_heading = re.search(r"(?m)^#{1,4}\s*12\.\s*Sources and Verification Checklist\s*$", text[body_start:])
+        body_end = body_start + next_heading.start() if next_heading else len(text)
+        body = text[body_start:body_end].strip()
+        # A pipe or header alone is not a meaningful evidence table.
+        table_rows = re.findall(r"(?m)^\|.*\|.*\|", body)
+        if len(table_rows) < 2:
+            replacement = (
+                "\n\nNo opportunity can be labelled **Verified open** using the evidence returned "
+                "by this run. Search results are leads only; deadlines, eligibility, and award "
+                "amounts need confirmation on the official funder page.\n\n"
+                "| Funder / programme | Official source URL | Status | Deadline / amount | Required next check |\n"
+                "|---|---|---|---|---|\n"
+                "| No verified open call identified from supplied evidence | Not established | Insufficient evidence | Not confirmed | Check official call page, current deadline, legal-form eligibility, geography, and award ceiling. |\n\n"
+            )
+            text = text[:body_start] + replacement + text[body_end:]
+
+    for heading in REQUIRED_REPORT_SECTIONS:
+        heading_regex = r"(?im)^#{1,4}\s*" + re.escape(heading) + r".*$"
+        if not re.search(heading_regex, text):
+            text += (
+                "\n\n## " + heading + "\n\n"
+                "_This section was missing from the generated draft. Complete it using verified "
+                "evidence before submitting or relying on this report._\n"
+            )
+
+    # Keep internal score section after the full 12-section report.
+    text = re.sub(
+        r"(?im)^#{1,4}\s*13\.\s*Automated Quality Audit",
+        "## 13. Automated Quality Audit",
+        text,
+    )
+    return text
+
+
 def generate_grant_report(org_type: str, mission: str) -> str:
     """Search, validate, draft, score, and revise a grant strategy report."""
     today = date.today().isoformat()
@@ -358,6 +419,9 @@ CURRENT REPORT:
                 logger.warning("Revision response was unexpectedly short; keeping original draft.")
         except Exception as exc:
             logger.warning("Quality revision unavailable (%s); keeping original draft.", type(exc).__name__)
+
+    # Repair malformed/missing headings and the empty opportunity table before rendering.
+    report = _normalize_report_structure(report)
 
     # Append transparent QA information; never imply the score guarantees funding success.
     qa = {
