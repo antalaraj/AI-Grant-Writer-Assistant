@@ -136,6 +136,23 @@ Solution.
         self.assertNotIn("| Verified open |", result)
         self.assertIn("csrxchange.gov.in", result)
 
+    def test_fallback_portal_table_uses_compact_columns(self):
+        portal_sources = json.dumps([{
+            "title": "Official scheme directory",
+            "url": "https://example.gov.in/schemes",
+            "domain": "example.gov.in",
+            "source_tier": "Official government portal",
+            "record_type": "portal",
+            "verification_status": "Directory only; no call verified",
+        }])
+        result = _normalize_report_structure(
+            "## 11. Grant Opportunity Evidence Table\n| # |\n",
+            portal_sources,
+        )
+        self.assertIn("| Official source / directory | Evidence status | Next action |", result)
+        self.assertIn("Portal only; no call verified", result)
+        self.assertNotIn("Source URL | Source tier | Status | Required verification", result)
+
 
 if __name__ == "__main__":
     unittest.main()
