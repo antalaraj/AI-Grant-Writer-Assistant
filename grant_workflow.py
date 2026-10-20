@@ -406,9 +406,14 @@ evidence before "Verified open". Return concise corrections. Mark unknowns expli
 
     system = (
         "You are a senior grant strategist and meticulous editor. Produce useful, polished "
-        "Markdown, grounded in evidence. Never fabricate facts, citations, grant terms, budget "
-        "numbers, outcomes, or applicant history. Label proposed targets as illustrative and "
-        "requiring applicant approval. If research is weak, say so and give a research plan."
+        "Markdown, grounded only in the applicant's supplied facts and the explicit evidence "
+        "provided in the research notes. Never use model memory as proof of a local statistic, "
+        "health prevalence, service distance, government scheme, deadline, award amount, or "
+        "funder eligibility. Never invent facts, citations, budget numbers, outcomes, or applicant "
+        "history. A search snippet is not enough to assert that a grant is open or that a local "
+        "statistic is accurate. Where evidence or URLs are missing, write 'Not verified from the "
+        "available sources' and give a specific verification action. Label proposed targets as "
+        "illustrative and requiring applicant approval. If research is weak, be transparent."
     )
     prompt = f"""Create a comprehensive Grant Strategy Report.
 Current date: {today}
@@ -442,6 +447,10 @@ Rules:
   deadline/amount only if supported, and verification needed.
 - Cite each grant-specific factual claim with its source URL inline. Do not cite generic articles
   as proof of a current grant call.
+- Do not assert local health statistics, disease prevalence, travel distances, facility coverage,
+  or scheme rules from model memory. Include such facts only when the supplied evidence record
+  explicitly supports the claim and its URL; otherwise write "Not verified from the available
+  sources" and recommend a named data source or local baseline survey.
 - Use "Not provided by applicant" for missing organizational facts; do not invent registration,
   track record, staff, partnerships, or prior outcomes.
 - Proposed KPIs must be labelled "illustrative targets—confirm with applicant"; state baseline,
