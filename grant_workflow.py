@@ -16,7 +16,12 @@ HTTP_TIMEOUT_SECONDS = 90
 logger = logging.getLogger(__name__)
 
 
-def _post_json(url: str, payload: dict, headers: dict | None = None) -> dict:
+def _post_json(
+    url: str,
+    payload: dict,
+    headers: dict | None = None,
+    timeout: int = HTTP_TIMEOUT_SECONDS,
+) -> dict:
     """POST JSON and return the decoded response with useful API errors."""
     body = json.dumps(payload).encode("utf-8")
     request_headers = {
@@ -29,7 +34,7 @@ def _post_json(url: str, payload: dict, headers: dict | None = None) -> dict:
         request_headers.update(headers)
     req = Request(url, data=body, headers=request_headers, method="POST")
     try:
-        with urlopen(req, timeout=HTTP_TIMEOUT_SECONDS) as response:
+        with urlopen(req, timeout=timeout) as response:
             return json.loads(response.read().decode("utf-8"))
     except HTTPError as exc:
         details = exc.read().decode("utf-8", errors="replace")
@@ -65,7 +70,7 @@ def _groq_chat(system_prompt: str, user_prompt: str, temperature: float = 0.2) -
         raise RuntimeError("Groq returned an unexpected chat-completion response.") from None
 
 
-def _gemini_generate(prompt: str) -> str:
+def _gemini_generate(prompt: str, timeout: int = 25) -> str:
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
         raise RuntimeError("GEMINI_API_KEY is not configured.")
@@ -80,6 +85,7 @@ def _gemini_generate(prompt: str) -> str:
             "generationConfig": {"temperature": 0.1},
         },
         {"x-goog-api-key": api_key},
+        timeout=timeout,
     )
     try:
         parts = data["candidates"][0]["content"]["parts"]
@@ -96,10 +102,12 @@ def _search_grants(org_type: str, mission: str, today: str) -> str:
     except ImportError as exc:
         raise RuntimeError("The ddgs search dependency is not installed.") from exc
 
+    # Keep search queries short and focused. Sending the full mission text to
+    # search engines produces noisy URLs and less relevant results.
     queries = [
         f"{org_type} grant funding opportunity official deadline {today}",
-        f"government foundation grants {mission} applications open",
-        f"equity-free startup grants OR NGO funding official application",
+        f"India Gujarat NGO education grants official application {today}",
+        f"CSR education funding India official NGO application",
     ]
     found = []
     seen_urls = set()
@@ -164,8 +172,9 @@ and what still needs verification. If no credible opportunity is evident, say so
     )
 
     logger.info("Grant workflow stage=gemini_validation started.")
-    validation = _gemini_generate(
-        f"""You are a strict grant eligibility and fact-checking reviewer.
+    try:
+        validation = _gemini_generate(
+            f"""You are a strict grant eligibility and fact-checking reviewer.
 Today's date: {today}
 Applicant organization type: {org_type}
 Mission: {mission}
@@ -178,7 +187,20 @@ evidence proves it. Mark unknown details as "Needs official verification". Flag 
 that are missing, past, or ambiguous. Check entity type, geography, stage, matching funds,
 and financial constraints where information is available. Rank opportunities Highest Match,
 Medium Match, or Rejected, and explain risks. Never invent facts."""
-    )
+        )
+    except Exception as exc:
+        # Gemini is an optional second-pass reviewer. A timeout must not discard
+        # the research already produced by Groq or prevent the final report.
+        logger.warning(
+            "Gemini validation unavailable (%s); continuing with explicit verification caveat.",
+            type(exc).__name__,
+        )
+        validation = (
+            "SECOND-PASS VALIDATION UNAVAILABLE. Gemini validation failed or timed out. "
+            "Do not treat any candidate as confirmed open or eligible. Mark deadlines, "
+            "eligibility, award amounts, and application links as needing verification "
+            "directly on the funder's official website."
+        )
 
     logger.info("Grant workflow stage=groq_report started.")
     report = _groq_chat(
