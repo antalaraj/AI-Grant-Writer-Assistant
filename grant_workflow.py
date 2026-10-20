@@ -155,12 +155,38 @@ def _search_grants(org_type: str, mission: str, today: str) -> str:
         x["domain"],
     ))
     if not found:
-        found = [{
-            "title": "No search results available", "url": "", "domain": "",
-            "source_tier": "No URL",
-            "snippet": "Search returned no usable results. Do not invent grants.",
-            "verification_status": "No evidence",
-        }]
+        # Search providers can return no records in serverless environments even when
+        # official directories exist. Provide clearly-labelled research starting points,
+        # never pretend these are grant calls or that a funding window is open.
+        found = [
+            {
+                "title": "National CSR Exchange Portal — implementing agency and project directory",
+                "url": "https://www.csrxchange.gov.in/Frontend/",
+                "domain": "csrxchange.gov.in",
+                "source_tier": "Official Government of India portal",
+                "snippet": "Directory and marketplace connecting CSR corporates and implementing agencies; not a grant-call listing.",
+                "verification_status": "Portal only; no matching open call verified",
+                "record_type": "portal",
+            },
+            {
+                "title": "NGO Grants Online Application and Tracking System",
+                "url": "https://services.india.gov.in/service/detail/ngo-grants-online-application-and-tracking-system",
+                "domain": "services.india.gov.in",
+                "source_tier": "Official Government of India portal",
+                "snippet": "Government service information for online NGO grant applications; specific scheme eligibility must be checked.",
+                "verification_status": "Portal only; no matching open call verified",
+                "record_type": "portal",
+            },
+            {
+                "title": "NGO-DARPAN social schemes information",
+                "url": "https://services.india.gov.in/service/detail/apply-online-for-social-schemes-by-ngo-darpan",
+                "domain": "services.india.gov.in",
+                "source_tier": "Official Government of India portal",
+                "snippet": "Information on NGO-DARPAN enrolment and social schemes; not evidence of a currently open call.",
+                "verification_status": "Portal only; no matching open call verified",
+                "record_type": "portal",
+            },
+        ]
     logger.info("Grant search completed with %d unique result records.", len(found))
     return json.dumps(found[:10], ensure_ascii=False, indent=2)
 
@@ -276,6 +302,8 @@ def _source_list(source_json: str) -> list[dict]:
             "url": url.replace("|", "%7C"),
             "domain": domain,
             "source_tier": str(row.get("source_tier") or _source_tier(url)),
+            "record_type": str(row.get("record_type") or "search_result"),
+            "verification_status": str(row.get("verification_status") or "Search result only; not independently verified"),
         })
     return clean[:6]
 
@@ -350,9 +378,16 @@ def _normalize_report_structure(report: str, source_json: str = "[]") -> str:
         if sources:
             for item in sources:
                 title = item["title"].replace("[", "\\[").replace("]", "\\]")
+                is_portal = item.get("record_type") == "portal"
+                status = "Portal only; no call verified" if is_portal else "Unverified lead"
+                verification = (
+                    "Search this directory for a relevant scheme; separately verify current call, eligibility, deadline, award, and application rules."
+                    if is_portal else
+                    "Confirm active call, eligibility, deadline, funding limit, and application rules on the source page."
+                )
                 rows.append(
                     f"| {title} | [Open source]({item['url']}) | {item['source_tier']} | "
-                    "Unverified lead | Confirm active call, eligibility, deadline, funding limit, and application rules on the source page. |\n"
+                    f"{status} | {verification} |\n"
                 )
         else:
             rows.append(
@@ -569,9 +604,21 @@ CURRENT REPORT:
         "unsupported_claims_flagged": review_data.get("unsupported_claims", []) if review_data else [],
     }
     report += "\n\n## 13. Automated Quality Audit\n\n"
+    score = qa["internal_checklist_score"]
     report += "This is an internal checklist score, not a guarantee of funding success. "
     report += "Human verification of official funder pages is required before submission.\n\n"
-    report += "```json\n" + json.dumps(qa, ensure_ascii=False, indent=2) + "\n```\n"
+    if score is None:
+        report += "**Audit status:** Not completed — no score was calculated.\n\n"
+    else:
+        report += f"**Internal checklist score:** {score}/100 (automated estimate, not a funding prediction).\n\n"
+    for label, key in (("Critical issues", "critical_issues"),
+                       ("Remaining fixes", "remaining_fixes"),
+                       ("Unsupported claims flagged", "unsupported_claims_flagged")):
+        items = qa.get(key) or []
+        if items:
+            report += f"### {label}\n\n"
+            report += "".join(f"- {str(item).strip()}\n" for item in items)
+            report += "\n"
     logger.info("Grant workflow completed; final checklist score=%s/100.",
                 qa["internal_checklist_score"])
     return report
