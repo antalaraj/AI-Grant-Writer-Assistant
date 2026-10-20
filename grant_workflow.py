@@ -175,11 +175,11 @@ Date: {today}
 Organization type: {org_type}
 Mission: {mission}
 
-Score each criterion from 0 to its maximum:
+Score each criterion from 0 to its maximum; the weights must total exactly 100:
 - source quality and direct official URLs (20)
 - evidence-backed opportunity status, deadlines, and eligibility (20)
 - tailoring to applicant mission and geography (15)
-- completeness of all 10 required report sections (15)
+- completeness and substantive content of all 12 required report sections (15)
 - actionable, internally consistent proposal plan (10)
 - budget logic without invented costs or unsupported totals (5)
 - measurable KPIs with baseline/target/timeframe and labelled assumptions (5)
@@ -256,19 +256,28 @@ def _source_list(source_json: str) -> list[dict]:
     if not isinstance(records, list):
         return []
     clean = []
+    seen_urls = set()
+    seen_domains = set()
     for row in records:
         if not isinstance(row, dict):
             continue
         url = str(row.get("url") or "").strip()
         if not url.startswith(("https://", "http://")):
             continue
+        domain = str(row.get("domain") or _domain(url)).lower()
+        canonical_url = url.rstrip("/").split("#", 1)[0]
+        if canonical_url in seen_urls or (domain and domain in seen_domains):
+            continue
+        seen_urls.add(canonical_url)
+        if domain:
+            seen_domains.add(domain)
         clean.append({
             "title": str(row.get("title") or "Untitled search result").replace("|", "\\|").replace("\n", " ")[:140],
             "url": url.replace("|", "%7C"),
-            "domain": str(row.get("domain") or _domain(url)),
+            "domain": domain,
             "source_tier": str(row.get("source_tier") or _source_tier(url)),
         })
-    return clean[:8]
+    return clean[:6]
 
 
 def _section_bounds(text: str, section_number: int) -> tuple[int, int] | None:
