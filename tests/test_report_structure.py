@@ -58,8 +58,8 @@ Roadmap.
             self.sources,
         )
         self.assertIn("not confirmed grant calls", result.lower())
-        self.assertIn("Insufficient evidence", result)
-        self.assertNotIn("Verified open |", result)
+        self.assertIn("Unverified lead", result)
+        self.assertNotIn("| Verified open |", result)
 
     def test_section_12_is_added_before_section_13(self):
         report = """## 1. Executive Summary
