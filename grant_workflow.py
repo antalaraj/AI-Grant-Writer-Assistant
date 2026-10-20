@@ -300,7 +300,10 @@ def _normalize_report_structure(report: str, source_json: str = "[]") -> str:
     for heading in REQUIRED_REPORT_SECTIONS:
         number, title = heading.split(". ", 1)
         n = int(number)
-        heading_regex = rf"(?im)^#{{1,4}}\s*{n}\.\s*{re.escape(title)}\b.*$"
+        # REQUIRED_REPORT_SECTIONS includes the number in each display label.
+        # Match the number once, then match only the title (allowing explanatory suffixes).
+        title_only = title.split(". ", 1)[1]
+        heading_regex = rf"(?im)^#{{1,4}}\s*{n}\.\s*{re.escape(title_only)}\b.*$"
         if not re.search(heading_regex, text):
             text = _insert_missing_section(text, n, title)
 
@@ -490,7 +493,7 @@ Rules:
         logger.info("Grant workflow stage=quality_audit started.")
         review_text = _quality_review(report, org_type, mission, today)
         parsed_review = _parse_review(review_text)
-        if parsed_review.get("total_score", 0) > 0 and isinstance(parsed_review.get("required_fixes", []), list):
+        if isinstance(parsed_review.get("total_score"), int) and isinstance(parsed_review.get("required_fixes", []), list):
             review_data = parsed_review
             audit_succeeded = True
     except Exception as exc:
