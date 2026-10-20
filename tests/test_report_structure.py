@@ -119,6 +119,23 @@ Solution.
         self.assertLess(result.index("## 3. Problem Statement"),
                         result.index("## 4. Proposed Solution & Innovation"))
 
+    def test_portal_sources_are_not_labelled_as_open_grants(self):
+        portal_sources = json.dumps([{
+            "title": "National CSR Exchange Portal",
+            "url": "https://www.csrxchange.gov.in/Frontend/",
+            "domain": "csrxchange.gov.in",
+            "source_tier": "Official Government of India portal",
+            "record_type": "portal",
+            "verification_status": "Portal only; no matching open call verified",
+        }])
+        result = _normalize_report_structure(
+            "## 11. Grant Opportunity Evidence Table\n| # |\n",
+            portal_sources,
+        )
+        self.assertIn("Portal only; no call verified", result)
+        self.assertNotIn("| Verified open |", result)
+        self.assertIn("csrxchange.gov.in", result)
+
 
 if __name__ == "__main__":
     unittest.main()
