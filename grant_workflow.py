@@ -160,30 +160,30 @@ def _search_grants(org_type: str, mission: str, today: str) -> str:
         # never pretend these are grant calls or that a funding window is open.
         found = [
             {
-                "title": "National CSR Exchange Portal — implementing agency and project directory",
-                "url": "https://www.csrxchange.gov.in/Frontend/",
-                "domain": "csrxchange.gov.in",
+                "title": "e-ANUDAAN — Ministry of Social Justice and Empowerment grant-in-aid portal",
+                "url": "https://grants-msje.gov.in/",
+                "domain": "grants-msje.gov.in",
                 "source_tier": "Official Government of India portal",
-                "snippet": "Directory and marketplace connecting CSR corporates and implementing agencies; not a grant-call listing.",
+                "snippet": "Official portal for grant-in-aid schemes administered by the Ministry of Social Justice and Empowerment; check scheme scope before considering it for a health project.",
                 "verification_status": "Portal only; no matching open call verified",
                 "record_type": "portal",
             },
             {
-                "title": "NGO Grants Online Application and Tracking System",
-                "url": "https://services.india.gov.in/service/detail/ngo-grants-online-application-and-tracking-system",
-                "domain": "services.india.gov.in",
-                "source_tier": "Official Government of India portal",
-                "snippet": "Government service information for online NGO grant applications; specific scheme eligibility must be checked.",
-                "verification_status": "Portal only; no matching open call verified",
+                "title": "National Health Mission — Janani Suraksha Yojana information",
+                "url": "https://nhm.gov.in/nhm/index1.php?lang=1&level=3&lid=309&sublinkid=841",
+                "domain": "nhm.gov.in",
+                "source_tier": "Official Government of India health portal",
+                "snippet": "Official scheme information on institutional delivery support; this is not a general NGO grant call.",
+                "verification_status": "Scheme information only; no NGO grant call verified",
                 "record_type": "portal",
             },
             {
-                "title": "NGO-DARPAN social schemes information",
-                "url": "https://services.india.gov.in/service/detail/apply-online-for-social-schemes-by-ngo-darpan",
-                "domain": "services.india.gov.in",
-                "source_tier": "Official Government of India portal",
-                "snippet": "Information on NGO-DARPAN enrolment and social schemes; not evidence of a currently open call.",
-                "verification_status": "Portal only; no matching open call verified",
+                "title": "Gujarat Women and Child Development — application forms",
+                "url": "https://wcd.gujarat.gov.in/applicationform",
+                "domain": "wcd.gujarat.gov.in",
+                "source_tier": "Official Government of Gujarat portal",
+                "snippet": "Official application-form directory; verify whether any listed programme supports this applicant and project.",
+                "verification_status": "Directory only; no matching open call verified",
                 "record_type": "portal",
             },
         ]
@@ -372,8 +372,8 @@ def _normalize_report_structure(report: str, source_json: str = "[]") -> str:
             "\n\nSearch results below are **potential leads only**. They are not confirmed grant calls. "
             "No result is labelled open or eligible because this workflow has not independently "
             "verified the official call page.\n\n",
-            "| Search-result title | Source URL | Source tier | Status | Required verification |\n",
-            "|---|---|---|---|---|\n",
+            "| Official source / directory | Evidence status | Next action |\n",
+            "|---|---|---|\n",
         ]
         if sources:
             for item in sources:
@@ -385,13 +385,15 @@ def _normalize_report_structure(report: str, source_json: str = "[]") -> str:
                     if is_portal else
                     "Confirm active call, eligibility, deadline, funding limit, and application rules on the source page."
                 )
+                # Keep the stable link label used by existing tests/integrations,
+                # while placing the descriptive title beside it in the same compact cell.
                 rows.append(
-                    f"| {title} | [Open source]({item['url']}) | {item['source_tier']} | "
+                    f"| [Open source]({item['url']}) — {title} — {item['source_tier']} | "
                     f"{status} | {verification} |\n"
                 )
         else:
             rows.append(
-                "| No usable search result | Not available | No URL | Insufficient evidence | Search the official funder portals manually. |\n"
+                "| No usable search result | No evidence found | Retry official-source search and check the portals manually. |\n"
             )
         rows.append("\n")
         text = text[:body_start] + "".join(rows) + text[body_end:]
@@ -525,7 +527,16 @@ Rules:
   explicitly supports the claim and its URL; otherwise write "Not verified from the available
   sources" and recommend a named data source or local baseline survey.
 - Use "Not provided by applicant" for missing organizational facts; do not invent registration,
-  track record, staff, partnerships, or prior outcomes.
+  track record, staff, partnerships, or prior outcomes. Never upgrade an applicant type into a
+  verified legal status: if registration evidence was not supplied, say "Legal registration status
+  not verified" rather than "registered Section 8 company".
+- All operational details not explicitly supplied by the applicant (number/duration of camps,
+  volunteer training length, age ranges, certifications, named partners, delivery methods, project
+  dates, or procurement plans) must be labelled "proposed design assumption—confirm with applicant".
+  Do not write them as agreed commitments or existing partnerships.
+- Treat the requested budget as applicant-provided only if explicitly supplied in the input.
+  If no amount was supplied, do not invent a total. If an amount was supplied, do not present it as
+  costed/validated without a line-item breakdown and quotes.
 - Proposed KPIs must be labelled "illustrative targets—confirm with applicant"; state baseline,
   measurement method, frequency, and timeframe where possible. Do not promise impact.
 - Budget must be a structure, not fabricated rupee amounts. Include categories and explain that
