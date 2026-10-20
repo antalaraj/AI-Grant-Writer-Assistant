@@ -15,7 +15,7 @@ from urllib.request import Request, urlopen
 
 GROQ_MODEL = "openai/gpt-oss-120b"
 GEMINI_MODEL = "gemini-3.8-flash"
-HTTP_TIMEOUT_SECONDS = 75
+HTTP_TIMEOUT_SECONDS = 60
 MAX_REVISION_ATTEMPTS = 1
 logger = logging.getLogger(__name__)
 
@@ -142,7 +142,7 @@ def _search_grants(org_type: str, mission: str, today: str) -> str:
                         "url": url,
                         "domain": _domain(url),
                         "source_tier": _source_tier(url),
-                        "snippet": item.get("body", ""),
+                        "snippet": (item.get("body", "") or "")[:350],
                         "verification_status": "Search result only; page not independently verified",
                     })
             except Exception as exc:
@@ -162,7 +162,7 @@ def _search_grants(org_type: str, mission: str, today: str) -> str:
             "verification_status": "No evidence",
         }]
     logger.info("Grant search completed with %d unique result records.", len(found))
-    return json.dumps(found[:20], ensure_ascii=False, indent=2)
+    return json.dumps(found[:10], ensure_ascii=False, indent=2)
 
 
 def _quality_review(report: str, org_type: str, mission: str, today: str) -> str:
@@ -308,38 +308,61 @@ Rules:
     logger.info("Grant workflow stage=initial_report started.")
     report = _groq_chat(system, prompt, temperature=0.15)
 
-    review_data = None
-    for attempt in range(MAX_REVISION_ATTEMPTS + 1):
-        try:
-            review_text = _quality_review(report, org_type, mission, today)
-            review_data = _parse_review(review_text)
-        except Exception as exc:
-            logger.warning("Quality audit unavailable (%s).", type(exc).__name__)
-            review_data = {"total_score": 0, "critical_issues": ["Automated audit unavailable."],
-                           "required_fixes": ["Human review required before relying on this report."]}
-        logger.info("Report quality audit score=%s/100 attempt=%d",
-                    review_data.get("total_score", 0), attempt + 1)
-        if review_data.get("total_score", 0) >= 95 or attempt >= MAX_REVISION_ATTEMPTS:
-            break
-        logger.info("Grant workflow stage=quality_revision started.")
-        report = _groq_chat(
-            system,
-            f"""Revise this report using the independent quality audit. Fix every critical issue,
-unsupported claim, missing section, and required fix. Do not inflate claims or invent facts.
-Preserve the required 12-section structure and evidence caveats.
+    # The draft is the deliverable. Auditing and revision are enhancements, so
+    # rate limits or malformed audit output must never turn a usable draft into HTTP 500.
+    review_data = {
+        "total_score": None,
+        "critical_issues": ["Automated quality audit could not be completed; manual review required."],
+        "required_fixes": ["Verify official grant pages, eligibility, deadlines, and all factual claims."],
+        "unsupported_claims": [],
+    }
+    audit_succeeded = False
+    try:
+        logger.info("Grant workflow stage=quality_audit started.")
+        review_text = _quality_review(report, org_type, mission, today)
+        parsed_review = _parse_review(review_text)
+        if parsed_review.get("total_score", 0) > 0 and isinstance(parsed_review.get("required_fixes", []), list):
+            review_data = parsed_review
+            audit_succeeded = True
+    except Exception as exc:
+        # In particular, Groq 429/TPM errors must not trigger another expensive call.
+        logger.warning("Quality audit unavailable (%s); keeping original draft.", type(exc).__name__)
 
-AUDIT:
-{json.dumps(review_data, ensure_ascii=False)}
+    if audit_succeeded:
+        logger.info("Report quality audit score=%s/100.", review_data["total_score"])
+    else:
+        logger.info("Report quality audit unavailable; score not calculated.")
+
+    # Only revise after a successful audit, and never lose the original draft if
+    # the optional revision call fails. One short attempt avoids a retry storm.
+    if audit_succeeded and review_data["total_score"] < 95:
+        logger.info("Grant workflow stage=quality_revision started.")
+        try:
+            fixes = review_data.get("required_fixes", [])[:6]
+            critical = review_data.get("critical_issues", [])[:6]
+            compact_report = report[:9000]
+            revised = _groq_chat(
+                system,
+                f"""Improve this grant report. Apply only these highest-priority fixes:
+{json.dumps({"critical_issues": critical, "required_fixes": fixes}, ensure_ascii=False)}
+Do not invent facts or grant details. Keep all 12 report sections, source URLs, and uncertainty labels.
+Return the complete revised Markdown report.
 
 CURRENT REPORT:
-{report}""",
-            temperature=0.1,
-        )
+{compact_report}""",
+                temperature=0.1,
+            )
+            if revised and len(revised) > 1000:
+                report = revised
+            else:
+                logger.warning("Revision response was unexpectedly short; keeping original draft.")
+        except Exception as exc:
+            logger.warning("Quality revision unavailable (%s); keeping original draft.", type(exc).__name__)
 
     # Append transparent QA information; never imply the score guarantees funding success.
     qa = {
-        "internal_checklist_score": review_data.get("total_score", 0) if review_data else 0,
-        "score_interpretation": "Automated checklist estimate, not a guarantee of accuracy, eligibility, or funding success.",
+        "internal_checklist_score": review_data.get("total_score") if audit_succeeded else None,
+        "score_interpretation": "Automated checklist estimate, not a guarantee of accuracy, eligibility, or funding success. Null means the audit could not run.",
         "critical_issues": review_data.get("critical_issues", []) if review_data else [],
         "remaining_fixes": review_data.get("required_fixes", []) if review_data else [],
         "unsupported_claims_flagged": review_data.get("unsupported_claims", []) if review_data else [],
